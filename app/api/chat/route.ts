@@ -1,5 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { streamText } from 'ai'
+import { processWithGraph } from './langgraph/graph'
 
 export async function POST(req: Request) {
   try {
@@ -26,16 +27,44 @@ export async function POST(req: Request) {
     console.log('Messages count:', messages?.length || 0)
     console.log('================================')
 
+    // Process through LangGraph for intent analysis and routing
+    const graphResult = await processWithGraph(messages, { apiKey: actualApiKey, model })
+    
+    // Prepare messages for streaming
+    let finalMessages = messages
+    
+    // If system engineering intent detected, modify the system message
+    if (graphResult.systemPrompt) {
+      console.log('Using system engineering prompt')
+      // Add system prompt as the first message if it doesn't exist
+      const hasSystemMessage = messages.some((msg: any) => msg.role === 'system')
+      if (!hasSystemMessage) {
+        finalMessages = [
+          { role: 'system', content: graphResult.systemPrompt },
+          ...messages
+        ]
+      } else {
+        // Replace existing system message
+        finalMessages = messages.map((msg: any) => 
+          msg.role === 'system' 
+            ? { ...msg, content: graphResult.systemPrompt }
+            : msg
+        )
+      }
+    }
+
     // Stream the response using the Vercel AI SDK
     const result = streamText({
       model: openai(model),
-      messages,
+      messages: finalMessages,
       temperature,
       maxTokens,
       onFinish: async (event) => {
         console.log('=== Chat Response Debug Info ===')
         console.log('Model used:', model)
-        // console.log('Usage from onFinish:', JSON.stringify(event.usage, null, 2))
+        console.log('Intent:', graphResult.intent)
+        console.log('Confidence:', graphResult.confidence)
+        console.log('Used system prompt:', !!graphResult.systemPrompt)
         console.log('Prompt tokens:', event.usage?.promptTokens || 'N/A')
         console.log('Completion tokens:', event.usage?.completionTokens || 'N/A')
         console.log('Total tokens:', event.usage?.totalTokens || 'N/A')
