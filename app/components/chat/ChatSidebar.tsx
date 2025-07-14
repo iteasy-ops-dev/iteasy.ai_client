@@ -57,16 +57,30 @@ export default function ChatSidebar({
   }
   return (
     <div className="flex h-full w-64 flex-col border-r bg-muted/20">
-      <div className="p-4">
+      {/* New Chat Section */}
+      <div className="p-4 border-b border-border">
         <Button onClick={onNewChat} className="w-full">
           <Plus className="mr-2 h-4 w-4" />
           New Chat
         </Button>
       </div>
       
-      <ScrollArea className="flex-1 px-2">
-        <div className="space-y-1">
-          {chats.map((chat) => (
+      {/* Chat History Section */}
+      <div className="flex-1 flex flex-col">
+        <div className="px-4 py-3 border-b border-border">
+          <h3 className="text-sm font-medium text-muted-foreground">Recent Chats</h3>
+        </div>
+        
+        <ScrollArea className="flex-1 px-2 py-2">
+          <div className="space-y-1">
+          {chats.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <MessageSquare className="h-8 w-8 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">아직 대화가 없습니다</p>
+              <p className="text-xs text-muted-foreground mt-1">새 채팅을 시작해보세요</p>
+            </div>
+          ) : (
+          chats.map((chat) => (
             <div
               key={chat.id}
               className={cn(
@@ -136,11 +150,14 @@ export default function ChatSidebar({
                 </>
               )}
             </div>
-          ))}
-        </div>
-      </ScrollArea>
+          ))
+          )}
+          </div>
+        </ScrollArea>
+      </div>
       
-      <div className="p-4 border-t">
+      {/* Settings Section */}
+      <div className="p-4 border-t border-border">
         <Button onClick={onOpenSettings} variant="outline" className="w-full">
           <Settings className="mr-2 h-4 w-4" />
           Settings

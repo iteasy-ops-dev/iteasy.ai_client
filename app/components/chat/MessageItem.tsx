@@ -39,8 +39,8 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
         <div className={cn(
           "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full shadow-sm",
           isUser 
-            ? "bg-blue-600 text-white" // User avatar: blue
-            : "bg-green-600 text-white" // AI avatar: green
+            ? "bg-primary text-primary-foreground" // User avatar: ITEasy teal
+            : "bg-accent text-accent-foreground" // AI avatar: lighter teal
         )}>
           {isUser ? (
             <User className="h-4 w-4" />
@@ -60,8 +60,8 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
           <div className={cn(
             "relative px-4 py-3 rounded-2xl shadow-sm",
             isUser 
-              ? "bg-blue-600 text-white rounded-br-sm" // User bubble: blue, sharp bottom-right corner
-              : "bg-white border border-gray-200 text-gray-900 rounded-bl-sm" // AI bubble: white with border, sharp bottom-left corner
+              ? "bg-primary text-primary-foreground rounded-br-sm" // User bubble: ITEasy teal, sharp bottom-right corner
+              : "bg-card border border-border text-card-foreground rounded-bl-sm" // AI bubble: card color with border, sharp bottom-left corner
           )}>
             {isUser ? (
               <div className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -95,7 +95,7 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
                           </Button>
                         </div>
                       ) : (
-                        <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...rest}>
+                        <code className="bg-muted px-1 py-0.5 rounded text-sm" {...rest}>
                           {children}
                         </code>
                       )
@@ -120,7 +120,7 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-gray-400 hover:text-gray-600"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
                 onClick={() => copyToClipboard(message.content)}
               >
                 <Copy className="h-3 w-3" />
@@ -131,7 +131,7 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-gray-400 hover:text-gray-600"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowToast(true)}
                   title={hasTokenUsage ? "View token usage" : "No token data"}
                 >
@@ -143,7 +143,7 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
           
           {/* Timestamp (optional) */}
           <div className={cn(
-            "text-xs text-gray-500 mt-1 px-2",
+            "text-xs text-muted-foreground mt-1 px-2",
             isUser ? "text-right" : "text-left"
           )}>
             {message.createdAt && new Date(message.createdAt).toLocaleTimeString([], { 
