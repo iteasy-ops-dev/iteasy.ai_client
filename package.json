@@ -1,7 +1,7 @@
 {
   "name": "iteasy.ai_client",
   "version": "1.0.0",
-  "description": "A modern ChatGPT-like AI chat interface built with Next.js 14, featuring real-time streaming responses, dynamic API key configuration, and token usage tracking.",
+  "description": "ITEasy 사내 전용 AI 채팅 클라이언트 - 업무 효율성과 생산성 향상을 위한 실시간 AI 어시스턴트 인터페이스",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
@@ -11,17 +11,19 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
+    "iteasy",
+    "internal",
+    "enterprise",
+    "ai-assistant",
     "chatgpt",
-    "ai",
     "openai",
     "nextjs",
     "react",
     "typescript",
     "streaming",
     "sse",
-    "chat",
-    "gpt",
-    "vercel-ai-sdk"
+    "productivity",
+    "workplace"
   ],
   "author": "iteasy-ops-dev <iteasy.ops.dev@gmail.com>",
   "license": "MIT",

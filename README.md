@@ -1,25 +1,34 @@
-# ITEasy AI Client - ChatGPT-like Interface
+# ITEasy AI Client
 
-A modern ChatGPT-like chat interface built with React, Next.js 14, and Server-Sent Events (SSE) for real-time streaming responses.
+**ITEasy 사내 전용 AI 채팅 인터페이스**
 
-**Developed by**: [iteasy-ops-dev](https://github.com/iteasy-ops-dev) (iteasy.ops.dev@gmail.com)
+ITEasy 팀원들을 위한 전용 AI 채팅 클라이언트입니다. 업무 효율성을 높이고 빠른 AI 상담이 가능하도록 설계된 현대적인 웹 인터페이스를 제공합니다.
 
-## Features
+- **대상**: ITEasy 사내 구성원
+- **목적**: 업무 지원 및 생산성 향상을 위한 AI 어시스턴트
+- **기술**: React, Next.js 14, Server-Sent Events (SSE)를 활용한 실시간 스트리밍
 
-- 🚀 **Real-time streaming** with SSE using Vercel AI SDK
-- 🔑 **Dynamic API key configuration** with in-app settings
-- 💬 **Multiple chat sessions** with sidebar navigation
-- 📝 **Markdown rendering** with syntax highlighting
-- 💾 **Persistent storage** using Zustand and localStorage
-- 🎨 **Modern UI** with Tailwind CSS and shadcn/ui components
-- 📱 **Responsive design** that works on all devices
-- ⚡ **Optimized performance** with memoized components
-- ⚙️ **Configurable AI settings** (model, temperature, max tokens)
-- 🔍 **API key validation** with real-time feedback
-- 🛡️ **Error handling** with user-friendly messages
-- 📊 **Token usage tracking** with toast notifications
-- ✏️ **Editable chat titles** in sidebar
-- 🎨 **Modern UI/UX** with bubble-style messages
+**개발**: [iteasy-ops-dev](https://github.com/iteasy-ops-dev) (iteasy.ops.dev@gmail.com)
+
+## 주요 기능
+
+### 💼 업무 지원 기능
+- 🚀 **실시간 스트리밍**: SSE를 활용한 즉시 응답
+- 💬 **다중 대화 세션**: 프로젝트별/주제별 대화 관리
+- 📊 **토큰 사용량 추적**: 비용 관리 및 사용량 모니터링
+- ✏️ **대화 제목 편집**: 업무별 대화 정리 및 분류
+
+### 🔧 설정 및 관리
+- 🔑 **API 키 설정**: 사내 OpenAI API 키 동적 구성
+- ⚙️ **AI 모델 설정**: GPT 모델, 창의성, 응답 길이 조절
+- 🔍 **API 키 검증**: 실시간 유효성 확인
+- 💾 **대화 저장**: 로컬 스토리지를 통한 대화 기록 보존
+
+### 🎨 사용자 경험
+- 📱 **반응형 디자인**: 데스크탑/모바일 모든 환경 지원
+- 📝 **마크다운 렌더링**: 코드 블록, 표, 목록 등 완벽 지원
+- 🎨 **모던 UI**: 직관적인 메신저 스타일 인터페이스
+- 🛡️ **오류 처리**: 사용자 친화적 에러 메시지
 
 ## Tech Stack
 
@@ -32,32 +41,38 @@ A modern ChatGPT-like chat interface built with React, Next.js 14, and Server-Se
 - **Code Highlighting**: react-syntax-highlighter
 - **Icons**: Lucide React
 
-## Setup
+## 설치 및 실행 가이드
 
-1. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-
-2. **Run the development server**:
-   ```bash
-   npm run dev
-   ```
-
-3. **Open your browser**:
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-4. **Configure OpenAI API Key**:
-   - Click "Configure API Key" or "Settings" button
-   - Enter your OpenAI API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-   - Optionally adjust model settings (GPT-3.5, GPT-4, etc.)
-   - Click "Validate Key" to verify your API key
-   - Save settings
-
-**Note**: You can also set the API key as an environment variable in `.env.local` (optional):
+### 1. 의존성 설치
+```bash
+npm install
 ```
-OPENAI_API_KEY=your_openai_api_key_here
+
+### 2. 개발 서버 실행
+```bash
+npm run dev
 ```
+
+### 3. 웹 브라우저 접속
+[http://localhost:3000](http://localhost:3000) 으로 이동
+
+### 4. ITEasy OpenAI API 키 설정
+1. 화면의 "API Key 설정" 또는 "설정" 버튼 클릭
+2. ITEasy에서 제공받은 OpenAI API 키 입력
+3. 필요시 AI 모델 설정 조정 (GPT-3.5, GPT-4 등)
+4. "키 검증" 버튼으로 유효성 확인
+5. 설정 저장
+
+**참고**: 환경변수로도 API 키 설정 가능 (`.env.local` 파일):
+```
+OPENAI_API_KEY=iteasy_openai_api_key_here
+```
+
+### 5. 사내 사용 가이드
+- **프로젝트별 대화**: 각 프로젝트/업무별로 별도 대화 생성
+- **제목 편집**: 사이드바에서 대화 제목을 더블클릭하여 편집
+- **토큰 추적**: AI 답변의 차트 아이콘 클릭으로 사용량 확인
+- **설정 최적화**: 업무 특성에 맞게 모델과 창의성 조절
 
 ## Project Structure
 
