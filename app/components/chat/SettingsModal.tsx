@@ -20,10 +20,12 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
     model,
     temperature,
     maxTokens,
+    theme: storeTheme,
     setApiKey,
     setModel,
     setTemperature,
     setMaxTokens,
+    setTheme: setStoreTheme,
     validateApiKey,
     resetSettings,
   } = useSettingsStore()
@@ -36,7 +38,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
   const [showApiKey, setShowApiKey] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [validationResult, setValidationResult] = useState<'success' | 'error' | null>(null)
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(storeTheme)
 
   // Load current settings when modal opens
   useEffect(() => {
@@ -46,11 +48,9 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
       setLocalTemperature(temperature)
       setLocalMaxTokens(maxTokens)
       setValidationResult(null)
-      // Load theme from localStorage or system preference
-      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' || 'system'
-      setTheme(savedTheme)
+      setTheme(storeTheme)
     }
-  }, [open, apiKey, model, temperature, maxTokens])
+  }, [open, apiKey, model, temperature, maxTokens, storeTheme])
 
   const handleValidateApiKey = async () => {
     if (!localApiKey.trim()) return
@@ -84,10 +84,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
     setModel(localModel)
     setTemperature(localTemperature)
     setMaxTokens(localMaxTokens)
-    
-    // Save theme
-    localStorage.setItem('theme', theme)
-    applyTheme(theme)
+    setStoreTheme(theme)
     
     onOpenChange(false)
   }
@@ -101,22 +98,10 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
       resetSettings()
     } else if (activeTab === 'theme') {
       setTheme('system')
-      localStorage.setItem('theme', 'system')
-      applyTheme('system')
+      setStoreTheme('system')
     }
   }
 
-  const applyTheme = (newTheme: 'light' | 'dark' | 'system') => {
-    const root = window.document.documentElement
-    root.classList.remove('light', 'dark')
-    
-    if (newTheme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-      root.classList.add(systemTheme)
-    } else {
-      root.classList.add(newTheme)
-    }
-  }
 
   const isApiKeyValid = localApiKey.length > 0 && localApiKey.startsWith('sk-')
 

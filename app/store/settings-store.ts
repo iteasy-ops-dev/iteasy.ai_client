@@ -8,12 +8,14 @@ interface SettingsStore {
   model: string
   temperature: number
   maxTokens: number
+  theme: 'light' | 'dark' | 'system'
   
   // Actions
   setApiKey: (apiKey: string) => void
   setModel: (model: string) => void
   setTemperature: (temperature: number) => void
   setMaxTokens: (maxTokens: number) => void
+  setTheme: (theme: 'light' | 'dark' | 'system') => void
   validateApiKey: () => boolean
   resetSettings: () => void
 }
@@ -25,6 +27,7 @@ export const useSettingsStore = create<SettingsStore>()(
       model: 'gpt-3.5-turbo',
       temperature: 0.7,
       maxTokens: 1000,
+      theme: 'system' as 'light' | 'dark' | 'system',
 
       setApiKey: (apiKey: string) => {
         set({ apiKey: apiKey.trim() })
@@ -42,6 +45,10 @@ export const useSettingsStore = create<SettingsStore>()(
         set({ maxTokens: Math.max(1, Math.min(4000, maxTokens)) })
       },
 
+      setTheme: (theme: 'light' | 'dark' | 'system') => {
+        set({ theme })
+      },
+
       validateApiKey: () => {
         const { apiKey } = get()
         return apiKey.length > 0 && apiKey.startsWith('sk-')
@@ -53,6 +60,7 @@ export const useSettingsStore = create<SettingsStore>()(
           model: 'gpt-3.5-turbo',
           temperature: 0.7,
           maxTokens: 1000,
+          theme: 'system' as 'light' | 'dark' | 'system',
         })
       },
     }),
@@ -68,7 +76,7 @@ export const useSettingsStore = create<SettingsStore>()(
           removeItem: () => {},
         }
       }),
-      skipHydration: true,
+      skipHydration: false,
     }
   )
 )

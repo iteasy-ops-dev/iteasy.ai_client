@@ -39,6 +39,7 @@ export default function ChatInterface() {
   useEffect(() => {
     if (isHydrated) {
       useChatStore.persist.rehydrate()
+      // Settings store now auto-hydrates, but ensure it's complete
       useSettingsStore.persist.rehydrate()
     }
   }, [isHydrated])
@@ -151,9 +152,11 @@ export default function ChatInterface() {
   const handleSubmit = () => {
     if (!input.trim()) return
 
-    // Check if API key is set
-    if (!validateApiKey()) {
-      setSettingsOpen(true)
+    // Check if hydration is complete and API key is set
+    if (!isHydrated || !validateApiKey()) {
+      if (isHydrated) {
+        setSettingsOpen(true)
+      }
       return
     }
 
@@ -199,7 +202,7 @@ export default function ChatInterface() {
         <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-foreground mb-4">
-              AI Chat
+              ITEasy AI Agent
             </h1>
             <p className="text-muted-foreground">Loading...</p>
           </div>
@@ -240,7 +243,7 @@ export default function ChatInterface() {
             <div className="flex flex-1 items-center justify-center">
               <div className="text-center">
                 <h1 className="text-4xl font-bold text-foreground mb-4">
-                  AI Chat
+                  ITEasy AI Agent
                 </h1>
                 <p className="text-muted-foreground mb-8">
                   {!validateApiKey() 
