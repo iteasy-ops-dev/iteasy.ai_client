@@ -7,7 +7,7 @@ import { Input } from '@/app/components/ui/input'
 import { Label } from '@/app/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog'
-import { Eye, EyeOff, Check, X } from 'lucide-react'
+import { Eye, EyeOff, Check, X, Settings, Monitor, Sun, Moon } from 'lucide-react'
 
 interface SettingsModalProps {
   open: boolean
@@ -28,6 +28,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
     resetSettings,
   } = useSettingsStore()
 
+  const [activeTab, setActiveTab] = useState('api')
   const [localApiKey, setLocalApiKey] = useState('')
   const [localModel, setLocalModel] = useState('')
   const [localTemperature, setLocalTemperature] = useState(0.7)
@@ -35,6 +36,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
   const [showApiKey, setShowApiKey] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [validationResult, setValidationResult] = useState<'success' | 'error' | null>(null)
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
 
   // Load current settings when modal opens
   useEffect(() => {
@@ -44,6 +46,9 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
       setLocalTemperature(temperature)
       setLocalMaxTokens(maxTokens)
       setValidationResult(null)
+      // Load theme from localStorage or system preference
+      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' || 'system'
+      setTheme(savedTheme)
     }
   }, [open, apiKey, model, temperature, maxTokens])
 
@@ -79,18 +84,46 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
     setModel(localModel)
     setTemperature(localTemperature)
     setMaxTokens(localMaxTokens)
+    
+    // Save theme
+    localStorage.setItem('theme', theme)
+    applyTheme(theme)
+    
     onOpenChange(false)
   }
 
   const handleReset = () => {
-    setLocalApiKey('')
-    setLocalModel('gpt-3.5-turbo')
-    setLocalTemperature(0.7)
-    setLocalMaxTokens(1000)
-    resetSettings()
+    if (activeTab === 'api') {
+      setLocalApiKey('')
+      setLocalModel('gpt-3.5-turbo')
+      setLocalTemperature(0.7)
+      setLocalMaxTokens(1000)
+      resetSettings()
+    } else if (activeTab === 'theme') {
+      setTheme('system')
+      localStorage.setItem('theme', 'system')
+      applyTheme('system')
+    }
+  }
+
+  const applyTheme = (newTheme: 'light' | 'dark' | 'system') => {
+    const root = window.document.documentElement
+    root.classList.remove('light', 'dark')
+    
+    if (newTheme === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      root.classList.add(systemTheme)
+    } else {
+      root.classList.add(newTheme)
+    }
   }
 
   const isApiKeyValid = localApiKey.length > 0 && localApiKey.startsWith('sk-')
+
+  const tabs = [
+    { id: 'api', label: 'API Settings', icon: Settings },
+    { id: 'theme', label: 'Theme', icon: Monitor },
+  ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,7 +132,34 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="flex h-[500px]">
+          {/* Sidebar */}
+          <div className="w-64 border-r border-border bg-muted/20 flex flex-col">
+            <nav className="p-4 space-y-2">
+              {tabs.map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors ${
+                      activeTab === tab.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </nav>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 p-6 overflow-y-auto">
+            {activeTab === 'api' && (
+              <div className="space-y-6">
           {/* API Key Section */}
           <div className="space-y-2">
             <Label htmlFor="apiKey">OpenAI API Key</Label>
@@ -213,20 +273,80 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
             />
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={handleReset}>
-              Reset
-            </Button>
-            
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSave}>
-                Save
-              </Button>
-            </div>
+                {/* Action Buttons */}
+                <div className="flex justify-between pt-4">
+                  <Button variant="outline" onClick={handleReset}>
+                    Reset API Settings
+                  </Button>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSave}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'theme' && (
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Appearance</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Choose how the application looks. You can select a theme that matches your preferences.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <Label>Theme</Label>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { value: 'light', label: 'Light', icon: Sun, description: 'Light mode' },
+                      { value: 'dark', label: 'Dark', icon: Moon, description: 'Dark mode' },
+                      { value: 'system', label: 'System', icon: Monitor, description: 'Use system setting' },
+                    ].map((option) => {
+                      const Icon = option.icon
+                      return (
+                        <button
+                          key={option.value}
+                          onClick={() => setTheme(option.value as 'light' | 'dark' | 'system')}
+                          className={`p-4 border rounded-lg text-left space-y-2 transition-colors ${
+                            theme === option.value
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:bg-accent/50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-5 w-5" />
+                            <span className="font-medium">{option.label}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{option.description}</p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Theme Action Buttons */}
+                <div className="flex justify-between pt-4">
+                  <Button variant="outline" onClick={handleReset}>
+                    Reset Theme
+                  </Button>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSave}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>
