@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { Copy, User, Bot, BarChart3 } from 'lucide-react'
+import { Copy, User, Bot, BarChart3, Check } from 'lucide-react'
 import { Button } from '@/app/components/ui/button'
 import { cn } from '@/app/lib/utils'
 import Toast from '@/app/components/ui/toast'
@@ -17,9 +17,12 @@ interface MessageItemProps {
 
 const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
   const [showToast, setShowToast] = useState(false)
+  const [showCopySuccess, setShowCopySuccess] = useState(false)
   
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
+    setShowCopySuccess(true)
+    setTimeout(() => setShowCopySuccess(false), 2000)
   }
 
   const isUser = message.role === 'user'
@@ -41,7 +44,7 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
               <div className="flex flex-col items-end relative">
                 {/* Message Bubble */}
                 <div className="relative px-4 py-3 rounded-2xl shadow-sm bg-primary text-primary-foreground rounded-br-sm">
-                  <div className="message-content text-base whitespace-pre-wrap font-normal">
+                  <div className="message-content text-sm whitespace-pre-wrap font-normal">
                     {message.content}
                   </div>
                   
@@ -50,10 +53,14 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                      className={`h-6 w-6 transition-colors ${
+                        showCopySuccess 
+                          ? 'text-green-600 hover:text-green-700' 
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
                       onClick={() => copyToClipboard(message.content)}
                     >
-                      <Copy className="h-3 w-3" />
+                      {showCopySuccess ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     </Button>
                   </div>
                 </div>
@@ -83,7 +90,7 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
               <div className="flex flex-col flex-1 relative items-start">
                 {/* Message Bubble */}
                 <div className="relative px-4 py-3 rounded-2xl shadow-sm max-w-[70%] bg-card border border-border text-card-foreground rounded-bl-sm">
-                  <div className="message-content prose prose-base prose-gray max-w-none text-base font-normal">
+                  <div className="message-content prose prose-sm prose-gray max-w-none text-sm font-normal">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -103,10 +110,18 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="absolute right-2 top-2 h-6 w-6 bg-gray-800 hover:bg-gray-700"
+                                className={`absolute right-2 top-2 h-6 w-6 transition-colors ${
+                                  showCopySuccess
+                                    ? 'bg-green-700 hover:bg-green-600'
+                                    : 'bg-gray-800 hover:bg-gray-700'
+                                }`}
                                 onClick={() => copyToClipboard(String(children))}
                               >
-                                <Copy className="h-3 w-3 text-white" />
+                                {showCopySuccess ? (
+                                  <Check className="h-3 w-3 text-white" />
+                                ) : (
+                                  <Copy className="h-3 w-3 text-white" />
+                                )}
                               </Button>
                             </div>
                           ) : (
@@ -129,10 +144,14 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                      className={`h-6 w-6 transition-colors ${
+                        showCopySuccess 
+                          ? 'text-green-600 hover:text-green-700' 
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
                       onClick={() => copyToClipboard(message.content)}
                     >
-                      <Copy className="h-3 w-3" />
+                      {showCopySuccess ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     </Button>
                     
                     {/* Token Usage Button for AI messages */}
