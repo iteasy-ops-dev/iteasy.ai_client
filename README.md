@@ -23,12 +23,16 @@ ITEasy 팀원들을 위한 전용 AI 채팅 클라이언트입니다. 업무 효
 - ⚙️ **AI 모델 설정**: GPT 모델, 창의성, 응답 길이 조절
 - 🔍 **API 키 검증**: 실시간 유효성 확인
 - 💾 **대화 저장**: 로컬 스토리지를 통한 대화 기록 보존
+- 🎨 **테마 시스템**: Light/Dark/System 모드 지원
+- 🔤 **폰트 커스터마이제이션**: 12가지 폰트 선택 (한글 최적화 포함)
 
 ### 🎨 사용자 경험
 - 📱 **반응형 디자인**: 데스크탑/모바일 모든 환경 지원
 - 📝 **마크다운 렌더링**: 코드 블록, 표, 목록 등 완벽 지원
 - 🎨 **모던 UI**: 직관적인 메신저 스타일 인터페이스
 - 🛡️ **오류 처리**: 사용자 친화적 에러 메시지
+- 📖 **향상된 가독성**: 여유로운 자간 및 줄간격으로 눈의 피로 감소
+- 🌍 **다국어 폰트 지원**: 한글과 영어에 최적화된 폰트 조합
 
 ## Tech Stack
 
@@ -36,10 +40,12 @@ ITEasy 팀원들을 위한 전용 AI 채팅 클라이언트입니다. 업무 효
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **AI SDK**: Vercel AI SDK (@ai-sdk/openai)
+- **AI Workflow**: LangGraph for intelligent intent analysis
 - **State Management**: Zustand
 - **Markdown**: react-markdown + remark-gfm
 - **Code Highlighting**: react-syntax-highlighter
 - **Icons**: Lucide React
+- **Fonts**: Google Fonts with dynamic loading
 
 ## 설치 및 실행 가이드
 
@@ -61,7 +67,9 @@ npm run dev
 2. ITEasy에서 제공받은 OpenAI API 키 입력
 3. 필요시 AI 모델 설정 조정 (GPT-3.5, GPT-4 등)
 4. "키 검증" 버튼으로 유효성 확인
-5. 설정 저장
+5. **테마 설정**: Light/Dark/System 모드 선택
+6. **폰트 설정**: 12가지 폰트 중 선택 (한글 최적화 포함)
+7. 설정 저장
 
 **참고**: 환경변수로도 API 키 설정 가능 (`.env.local` 파일):
 ```
@@ -79,7 +87,13 @@ OPENAI_API_KEY=iteasy_openai_api_key_here
 ```
 ├── app/
 │   ├── api/
-│   │   ├── chat/route.ts      # SSE streaming API endpoint
+│   │   ├── chat/
+│   │   │   ├── route.ts       # SSE streaming API endpoint (LangGraph integrated)
+│   │   │   └── langgraph/     # LangGraph intent analysis system
+│   │   │       ├── graph.ts   # Main workflow graph
+│   │   │       ├── types.ts   # Type definitions
+│   │   │       ├── nodes/     # Processing nodes
+│   │   │       └── prompts/   # Prompt templates
 │   │   └── validate-key/route.ts # API key validation endpoint
 │   ├── components/
 │   │   ├── chat/              # Chat-related components
@@ -88,15 +102,19 @@ OPENAI_API_KEY=iteasy_openai_api_key_here
 │   │   │   ├── MessageItem.tsx
 │   │   │   ├── InputArea.tsx
 │   │   │   ├── ChatSidebar.tsx
-│   │   │   └── SettingsModal.tsx
-│   │   └── ui/                # Reusable UI components
+│   │   │   └── SettingsModal.tsx # Tabbed settings (API/Theme/Font)
+│   │   ├── ui/                # Reusable UI components
+│   │   ├── FontProvider.tsx   # Dynamic font application
+│   │   ├── ThemeProvider.tsx  # Theme system management
+│   │   └── ClientOnly.tsx     # Client-side only rendering
 │   ├── hooks/                 # Custom React hooks
 │   ├── lib/                   # Utility functions
 │   ├── store/                 # Zustand stores
 │   │   ├── chat-store.ts      # Chat history management
-│   │   └── settings-store.ts  # API key and settings
+│   │   └── settings-store.ts  # API key, theme, and font settings
 │   ├── types/                 # TypeScript type definitions
-│   ├── layout.tsx
+│   ├── globals.css            # Global styles with font classes
+│   ├── layout.tsx             # Root layout with font variables
 │   └── page.tsx
 ├── tailwind.config.ts
 ├── tsconfig.json
@@ -104,6 +122,24 @@ OPENAI_API_KEY=iteasy_openai_api_key_here
 ```
 
 ## Key Features Explained
+
+### Intelligent Intent Analysis (LangGraph)
+The application uses LangGraph to automatically analyze user intent and route queries to appropriate response modes:
+- **General Chat**: Casual conversations and non-technical questions
+- **System Engineering**: Expert-level responses for infrastructure, DevOps, and technical queries
+- **Help**: Comprehensive guides for using the AI agent effectively
+
+### Font Customization System
+12 carefully selected fonts with multilingual support:
+- **English Fonts**: Inter, Open Sans, Roboto, Poppins, Nunito, Comfortaa, Quicksand, Lato, Source Sans 3
+- **Korean-Optimized**: Noto Sans KR, Noto Serif KR, IBM Plex Sans KR
+- **Smart Fallback**: English fonts automatically pair with Noto Sans KR for Korean text
+- **Real-time Application**: FontProvider enables instant font switching
+
+### Enhanced Typography
+- **Letter Spacing**: Optimized spacing (0.025em body, 0.03em messages) for improved readability
+- **Line Height**: Comfortable 1.7 line-height for reduced eye strain
+- **Consistent Sizing**: Unified text sizing across user and AI messages
 
 ### SSE Streaming
 The app uses Server-Sent Events for real-time streaming of AI responses. The `/api/chat` endpoint leverages the Vercel AI SDK to stream tokens as they're generated by OpenAI's API.
@@ -140,9 +176,11 @@ Messages are rendered with full Markdown support including:
 6. **Copy content**: Hover over messages to copy text or code blocks
 
 7. **Adjust settings**: 
-   - Choose between different GPT models (3.5, 4, 4-turbo, 4o)
-   - Adjust temperature (creativity) from 0 (precise) to 2 (creative)
-   - Set maximum tokens per response (1-4000)
+   - **API Tab**: Choose between different GPT models (3.5, 4, 4-turbo, 4o)
+   - **API Tab**: Adjust temperature (creativity) from 0 (precise) to 2 (creative)
+   - **API Tab**: Set maximum tokens per response (1-4000)
+   - **Theme Tab**: Select Light/Dark/System appearance mode
+   - **Font Tab**: Choose from 12 fonts with live preview (includes Korean-optimized options)
 
 ## API Endpoints
 
