@@ -11,6 +11,7 @@ import ChatSidebar from './ChatSidebar'
 import MessageList from './MessageList'
 import InputArea from './InputArea'
 import SettingsModal from './SettingsModal'
+import StatusBar from './StatusBar'
 
 export default function ChatInterface() {
   const isHydrated = useHydration()
@@ -118,6 +119,7 @@ export default function ChatInterface() {
         />
         
         <div className="flex flex-1 flex-col">
+          <StatusBar />
           {currentChat ? (
             <>
               <MessageList 
