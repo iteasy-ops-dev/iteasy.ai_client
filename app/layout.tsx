@@ -1,9 +1,85 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Noto_Sans_KR, Open_Sans, Roboto, Poppins, Nunito, Comfortaa, Quicksand, Lato, Source_Sans_3, Noto_Serif_KR, IBM_Plex_Sans_KR } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from './components/ThemeProvider'
+import { FontProvider } from './components/FontProvider'
 
-const inter = Inter({ subsets: ['latin'] })
+// Initialize all fonts
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const notoSansKr = Noto_Sans_KR({ 
+  subsets: ['latin'],
+  variable: '--font-noto-sans-kr',
+  display: 'swap',
+})
+
+const openSans = Open_Sans({ 
+  subsets: ['latin'],
+  variable: '--font-open-sans',
+  display: 'swap',
+})
+
+const roboto = Roboto({ 
+  weight: ['300', '400', '500', '700'],
+  subsets: ['latin'],
+  variable: '--font-roboto',
+  display: 'swap',
+})
+
+const poppins = Poppins({ 
+  weight: ['300', '400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-poppins',
+  display: 'swap',
+})
+
+const nunito = Nunito({ 
+  subsets: ['latin'],
+  variable: '--font-nunito',
+  display: 'swap',
+})
+
+const comfortaa = Comfortaa({ 
+  subsets: ['latin'],
+  variable: '--font-comfortaa',
+  display: 'swap',
+})
+
+const quicksand = Quicksand({ 
+  subsets: ['latin'],
+  variable: '--font-quicksand',
+  display: 'swap',
+})
+
+const lato = Lato({ 
+  weight: ['300', '400', '700'],
+  subsets: ['latin'],
+  variable: '--font-lato',
+  display: 'swap',
+})
+
+const sourceSans3 = Source_Sans_3({ 
+  subsets: ['latin'],
+  variable: '--font-source-sans-3',
+  display: 'swap',
+})
+
+const notoSerifKr = Noto_Serif_KR({ 
+  subsets: ['latin'],
+  variable: '--font-noto-serif-kr',
+  display: 'swap',
+})
+
+const ibmPlexSansKr = IBM_Plex_Sans_KR({ 
+  weight: ['300', '400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-ibm-plex-sans-kr',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'ITEasy AI Client',
@@ -43,9 +119,14 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body 
+        className={`${inter.variable} ${notoSansKr.variable} ${openSans.variable} ${roboto.variable} ${poppins.variable} ${nunito.variable} ${comfortaa.variable} ${quicksand.variable} ${lato.variable} ${sourceSans3.variable} ${notoSerifKr.variable} ${ibmPlexSansKr.variable}`}
+        suppressHydrationWarning
+      >
         <ThemeProvider>
-          {children}
+          <FontProvider>
+            {children}
+          </FontProvider>
         </ThemeProvider>
       </body>
     </html>

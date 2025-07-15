@@ -9,6 +9,7 @@ interface SettingsStore {
   temperature: number
   maxTokens: number
   theme: 'light' | 'dark' | 'system'
+  font: 'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr'
   
   // Actions
   setApiKey: (apiKey: string) => void
@@ -16,6 +17,7 @@ interface SettingsStore {
   setTemperature: (temperature: number) => void
   setMaxTokens: (maxTokens: number) => void
   setTheme: (theme: 'light' | 'dark' | 'system') => void
+  setFont: (font: 'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr') => void
   validateApiKey: () => boolean
   resetSettings: () => void
 }
@@ -28,6 +30,7 @@ export const useSettingsStore = create<SettingsStore>()(
       temperature: 0.7,
       maxTokens: 1000,
       theme: 'system' as 'light' | 'dark' | 'system',
+      font: 'inter' as 'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr',
 
       setApiKey: (apiKey: string) => {
         set({ apiKey: apiKey.trim() })
@@ -49,6 +52,10 @@ export const useSettingsStore = create<SettingsStore>()(
         set({ theme })
       },
 
+      setFont: (font: 'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr') => {
+        set({ font })
+      },
+
       validateApiKey: () => {
         const { apiKey } = get()
         return apiKey.length > 0 && apiKey.startsWith('sk-')
@@ -61,6 +68,7 @@ export const useSettingsStore = create<SettingsStore>()(
           temperature: 0.7,
           maxTokens: 1000,
           theme: 'system' as 'light' | 'dark' | 'system',
+          font: 'inter' as 'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr',
         })
       },
     }),

@@ -7,7 +7,7 @@ import { Input } from '@/app/components/ui/input'
 import { Label } from '@/app/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog'
-import { Eye, EyeOff, Check, X, Settings, Monitor, Sun, Moon } from 'lucide-react'
+import { Eye, EyeOff, Check, X, Settings, Monitor, Sun, Moon, Type } from 'lucide-react'
 
 interface SettingsModalProps {
   open: boolean
@@ -21,11 +21,13 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
     temperature,
     maxTokens,
     theme: storeTheme,
+    font: storeFont,
     setApiKey,
     setModel,
     setTemperature,
     setMaxTokens,
     setTheme: setStoreTheme,
+    setFont: setStoreFont,
     validateApiKey,
     resetSettings,
   } = useSettingsStore()
@@ -39,6 +41,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
   const [isValidating, setIsValidating] = useState(false)
   const [validationResult, setValidationResult] = useState<'success' | 'error' | null>(null)
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(storeTheme)
+  const [font, setFont] = useState<'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr'>(storeFont)
 
   // Load current settings when modal opens
   useEffect(() => {
@@ -49,8 +52,9 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
       setLocalMaxTokens(maxTokens)
       setValidationResult(null)
       setTheme(storeTheme)
+      setFont(storeFont)
     }
-  }, [open, apiKey, model, temperature, maxTokens, storeTheme])
+  }, [open, apiKey, model, temperature, maxTokens, storeTheme, storeFont])
 
   const handleValidateApiKey = async () => {
     if (!localApiKey.trim()) return
@@ -108,6 +112,7 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
   const tabs = [
     { id: 'api', label: 'API Settings', icon: Settings },
     { id: 'theme', label: 'Theme', icon: Monitor },
+    { id: 'font', label: 'Font', icon: Type },
   ]
 
   return (
@@ -326,6 +331,85 @@ export default function SettingsModal({ open, onOpenChange }: SettingsModalProps
                       Cancel
                     </Button>
                     <Button onClick={handleSave}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'font' && (
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Typography</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Choose the font family that makes reading comfortable for you.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <Label>Font Family</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { value: 'inter', label: 'Inter', description: 'Modern and clean' },
+                      { value: 'noto-sans-kr', label: 'Noto Sans KR', description: 'Korean optimized' },
+                      { value: 'open-sans', label: 'Open Sans', description: 'Friendly and readable' },
+                      { value: 'roboto', label: 'Roboto', description: 'Google Material Design' },
+                      { value: 'poppins', label: 'Poppins', description: 'Geometric and modern' },
+                      { value: 'nunito', label: 'Nunito', description: 'Rounded and soft' },
+                      { value: 'comfortaa', label: 'Comfortaa', description: 'Very rounded and comfortable' },
+                      { value: 'quicksand', label: 'Quicksand', description: 'Light and airy' },
+                      { value: 'lato', label: 'Lato', description: 'Humanist and warm' },
+                      { value: 'source-sans-3', label: 'Source Sans 3', description: 'Professional and clear' },
+                      { value: 'noto-serif-kr', label: 'Noto Serif KR', description: 'Korean serif, elegant' },
+                      { value: 'ibm-plex-sans-kr', label: 'IBM Plex Sans KR', description: 'Technical and modern' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setFont(option.value as typeof font)}
+                        className={`p-4 border rounded-lg text-left space-y-2 transition-colors ${
+                          font === option.value
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:bg-accent/50'
+                        }`}
+                        style={{ fontFamily: option.value === 'inter' ? 'var(--font-inter), var(--font-noto-sans-kr)' : 
+                                             option.value === 'noto-sans-kr' ? 'var(--font-noto-sans-kr)' :
+                                             option.value === 'open-sans' ? 'var(--font-open-sans), var(--font-noto-sans-kr)' :
+                                             option.value === 'roboto' ? 'var(--font-roboto), var(--font-noto-sans-kr)' :
+                                             option.value === 'poppins' ? 'var(--font-poppins), var(--font-noto-sans-kr)' :
+                                             option.value === 'nunito' ? 'var(--font-nunito), var(--font-noto-sans-kr)' :
+                                             option.value === 'comfortaa' ? 'var(--font-comfortaa), var(--font-noto-sans-kr)' :
+                                             option.value === 'quicksand' ? 'var(--font-quicksand), var(--font-noto-sans-kr)' :
+                                             option.value === 'lato' ? 'var(--font-lato), var(--font-noto-sans-kr)' :
+                                             option.value === 'source-sans-3' ? 'var(--font-source-sans-3), var(--font-noto-sans-kr)' :
+                                             option.value === 'noto-serif-kr' ? 'var(--font-noto-serif-kr)' :
+                                             option.value === 'ibm-plex-sans-kr' ? 'var(--font-ibm-plex-sans-kr)' : 'inherit' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Type className="h-5 w-5" />
+                          <span className="font-medium">{option.label}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{option.description}</p>
+                        <p className="text-sm">The quick brown fox jumps over the lazy dog</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Font Action Buttons */}
+                <div className="flex justify-between pt-4">
+                  <Button variant="outline" onClick={() => setFont('inter')}>
+                    Reset Font
+                  </Button>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={() => {
+                      setStoreFont(font)
+                      onOpenChange(false)
+                    }}>
                       Save
                     </Button>
                   </div>

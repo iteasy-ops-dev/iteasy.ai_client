@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+
 @layer base {
   :root {
     /* ITEasy Brand Colors */
@@ -57,5 +58,84 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-inter), sans-serif;
+    letter-spacing: 0.025em; /* 여유로운 자간 */
   }
+}
+
+/* Font utility classes - 한글+영어 조합 */
+.font-inter,
+.font-inter * {
+  font-family: var(--font-inter), var(--font-noto-sans-kr), sans-serif !important;
+}
+
+.font-noto-sans-kr,
+.font-noto-sans-kr * {
+  font-family: var(--font-noto-sans-kr), sans-serif !important;
+}
+
+.font-open-sans,
+.font-open-sans * {
+  font-family: var(--font-open-sans), var(--font-noto-sans-kr), sans-serif !important;
+}
+
+.font-roboto,
+.font-roboto * {
+  font-family: var(--font-roboto), var(--font-noto-sans-kr), sans-serif !important;
+}
+
+.font-poppins,
+.font-poppins * {
+  font-family: var(--font-poppins), var(--font-noto-sans-kr), sans-serif !important;
+}
+
+.font-nunito,
+.font-nunito * {
+  font-family: var(--font-nunito), var(--font-noto-sans-kr), sans-serif !important;
+}
+
+.font-comfortaa,
+.font-comfortaa * {
+  font-family: var(--font-comfortaa), var(--font-noto-sans-kr), sans-serif !important;
+}
+
+.font-quicksand,
+.font-quicksand * {
+  font-family: var(--font-quicksand), var(--font-noto-sans-kr), sans-serif !important;
+}
+
+.font-lato,
+.font-lato * {
+  font-family: var(--font-lato), var(--font-noto-sans-kr), sans-serif !important;
+}
+
+.font-source-sans-3,
+.font-source-sans-3 * {
+  font-family: var(--font-source-sans-3), var(--font-noto-sans-kr), sans-serif !important;
+}
+
+.font-noto-serif-kr,
+.font-noto-serif-kr * {
+  font-family: var(--font-noto-serif-kr), serif !important;
+}
+
+.font-ibm-plex-sans-kr,
+.font-ibm-plex-sans-kr * {
+  font-family: var(--font-ibm-plex-sans-kr), sans-serif !important;
+}
+
+/* 채팅 메시지 텍스트 간격 조정 */
+.message-content {
+  letter-spacing: 0.03em;
+  line-height: 1.7;
+}
+
+.message-content p {
+  margin-bottom: 1rem;
+  letter-spacing: 0.03em;
+}
+
+.message-content ul,
+.message-content ol {
+  letter-spacing: 0.03em;
 }

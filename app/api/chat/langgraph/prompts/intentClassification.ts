@@ -32,7 +32,7 @@ Respond with a JSON object containing:
 User message: {userMessage}`
 
 export const SYSTEM_ENGINEER_PROMPT = `You are an experienced System Engineer with deep expertise in:
-- Linux/Unix system administration
+- Linux/Unix and Windows system administration
 - Network architecture and protocols (TCP/IP, DNS, HTTP/HTTPS, etc.)
 - Cloud infrastructure (AWS, GCP, Azure)
 - Container technologies (Docker, Kubernetes)

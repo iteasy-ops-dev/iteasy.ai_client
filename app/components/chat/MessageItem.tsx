@@ -41,7 +41,7 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
               <div className="flex flex-col items-end relative">
                 {/* Message Bubble */}
                 <div className="relative px-4 py-3 rounded-2xl shadow-sm bg-primary text-primary-foreground rounded-br-sm">
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                  <div className="message-content text-base whitespace-pre-wrap font-normal">
                     {message.content}
                   </div>
                   
@@ -83,7 +83,7 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
               <div className="flex flex-col flex-1 relative items-start">
                 {/* Message Bubble */}
                 <div className="relative px-4 py-3 rounded-2xl shadow-sm max-w-[70%] bg-card border border-border text-card-foreground rounded-bl-sm">
-                  <div className="prose prose-sm prose-gray max-w-none">
+                  <div className="message-content prose prose-base prose-gray max-w-none text-base font-normal">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{

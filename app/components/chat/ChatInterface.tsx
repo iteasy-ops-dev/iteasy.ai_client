@@ -193,7 +193,7 @@ export default function ChatInterface() {
   // Show loading state until hydrated to prevent hydration mismatch
   if (!isHydrated) {
     return (
-      <div className="flex h-screen">
+      <div className="flex h-full">
         <div className="flex h-full w-64 flex-col border-r bg-muted/20">
           <div className="p-4">
             <div className="h-10 bg-muted rounded animate-pulse" />
@@ -213,7 +213,7 @@ export default function ChatInterface() {
 
   return (
     <>
-      <div className="flex h-screen">
+      <div className="flex h-full">
         <ChatSidebar
           chats={chats}
           currentChatId={currentChatId}
