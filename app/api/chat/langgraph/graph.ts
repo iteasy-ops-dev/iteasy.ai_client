@@ -41,11 +41,11 @@ export function createChatGraph(config: { apiKey: string; model?: string }) {
   workflow.addNode('help', helpNode)
 
   // Add edges from START to intentClassifier
-  workflow.addEdge(START, 'intentClassifier')
+  workflow.addEdge(START, 'intentClassifier' as any)
 
   // Add conditional edges based on intent
   workflow.addConditionalEdges(
-    'intentClassifier',
+    'intentClassifier' as any,
     (state: ChatState) => {
       console.log(`Routing based on intent: ${state.intent} (confidence: ${state.confidence})`)
       
@@ -61,13 +61,13 @@ export function createChatGraph(config: { apiKey: string; model?: string }) {
       generalChat: 'generalChat',
       systemEngineer: 'systemEngineer',
       help: 'help',
-    }
+    } as any
   )
 
   // All nodes lead to END
-  workflow.addEdge('generalChat', END)
-  workflow.addEdge('systemEngineer', END)
-  workflow.addEdge('help', END)
+  workflow.addEdge('generalChat' as any, END)
+  workflow.addEdge('systemEngineer' as any, END)
+  workflow.addEdge('help' as any, END)
 
   return workflow.compile()
 }
