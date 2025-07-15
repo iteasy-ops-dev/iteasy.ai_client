@@ -34,12 +34,14 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
           <MessageItem key={message.id} message={message} />
         ))}
         {isLoading && (
-          <div className="flex w-full gap-4 px-4 py-6 bg-muted/20">
-            <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border bg-background shadow">
-              <div className="h-4 w-4 rounded-full bg-primary animate-pulse" />
-            </div>
-            <div className="flex-1 space-y-2">
-              <div className="text-muted-foreground">Thinking...</div>
+          <div className="w-full px-4 py-6 bg-muted/20">
+            <div className="mx-auto max-w-4xl w-full flex gap-4">
+              <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border bg-background shadow">
+                <div className="h-4 w-4 rounded-full bg-primary animate-pulse" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <div className="text-muted-foreground">Thinking...</div>
+              </div>
             </div>
           </div>
         )}
