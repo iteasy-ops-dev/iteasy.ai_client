@@ -16,6 +16,7 @@ import StatusBar from './StatusBar'
 export default function ChatInterface() {
   const isHydrated = useHydration()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   // Client-side state management
   
   const {
@@ -83,11 +84,15 @@ export default function ChatInterface() {
     setSettingsOpen(true)
   }
 
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed)
+  }
+
   // Show loading state until hydrated to prevent hydration mismatch
   if (!isHydrated) {
     return (
       <div className="flex h-full">
-        <div className="flex h-full w-64 flex-col border-r bg-muted/20">
+        <div className={`flex h-full ${sidebarCollapsed ? 'w-16' : 'w-56'} flex-col border-r bg-muted/20`}>
           <div className="p-4">
             <div className="h-10 bg-muted rounded animate-pulse" />
           </div>
@@ -116,6 +121,8 @@ export default function ChatInterface() {
           onDeleteChat={handleDeleteChat}
           onOpenSettings={handleOpenSettings}
           onUpdateChatTitle={updateChatTitle}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
         />
         
         <div className="flex flex-1 flex-col">
