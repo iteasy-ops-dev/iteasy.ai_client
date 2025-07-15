@@ -11,6 +11,11 @@ interface SettingsStore {
   theme: 'light' | 'dark' | 'system'
   font: 'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr'
   
+  // Local LLM settings
+  llmProvider: 'openai' | 'local' | 'ollama'
+  localLLMEndpoint: string
+  localLLMModel: string
+  
   // Actions
   setApiKey: (apiKey: string) => void
   setModel: (model: string) => void
@@ -18,6 +23,9 @@ interface SettingsStore {
   setMaxTokens: (maxTokens: number) => void
   setTheme: (theme: 'light' | 'dark' | 'system') => void
   setFont: (font: 'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr') => void
+  setLLMProvider: (provider: 'openai' | 'local' | 'ollama') => void
+  setLocalLLMEndpoint: (endpoint: string) => void
+  setLocalLLMModel: (model: string) => void
   validateApiKey: () => boolean
   resetSettings: () => void
 }
@@ -31,6 +39,11 @@ export const useSettingsStore = create<SettingsStore>()(
       maxTokens: 1000,
       theme: 'system' as 'light' | 'dark' | 'system',
       font: 'inter' as 'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr',
+      
+      // Local LLM defaults
+      llmProvider: 'openai' as 'openai' | 'local' | 'ollama',
+      localLLMEndpoint: 'http://localhost:11434/api/generate',
+      localLLMModel: 'llama2',
 
       setApiKey: (apiKey: string) => {
         set({ apiKey: apiKey.trim() })
@@ -55,6 +68,18 @@ export const useSettingsStore = create<SettingsStore>()(
       setFont: (font: 'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr') => {
         set({ font })
       },
+      
+      setLLMProvider: (provider: 'openai' | 'local' | 'ollama') => {
+        set({ llmProvider: provider })
+      },
+      
+      setLocalLLMEndpoint: (endpoint: string) => {
+        set({ localLLMEndpoint: endpoint })
+      },
+      
+      setLocalLLMModel: (model: string) => {
+        set({ localLLMModel: model })
+      },
 
       validateApiKey: () => {
         const { apiKey } = get()
@@ -69,6 +94,9 @@ export const useSettingsStore = create<SettingsStore>()(
           maxTokens: 1000,
           theme: 'system' as 'light' | 'dark' | 'system',
           font: 'inter' as 'inter' | 'noto-sans-kr' | 'open-sans' | 'roboto' | 'poppins' | 'nunito' | 'comfortaa' | 'quicksand' | 'lato' | 'source-sans-3' | 'noto-serif-kr' | 'ibm-plex-sans-kr',
+          llmProvider: 'openai' as 'openai' | 'local' | 'ollama',
+          localLLMEndpoint: 'http://localhost:11434/api/generate',
+          localLLMModel: 'llama2',
         })
       },
     }),

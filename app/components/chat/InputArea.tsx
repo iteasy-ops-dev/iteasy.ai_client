@@ -9,18 +9,20 @@ import { ChangeEvent } from 'react'
 
 interface InputAreaProps {
   input: string
-  setInput: (e: ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLTextAreaElement>) => void
+  handleInputChange: (e: ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLTextAreaElement>) => void
   handleSubmit: () => void
   isLoading: boolean
   stop: () => void
+  disabled?: boolean
 }
 
 export default function InputArea({
   input,
-  setInput,
+  handleInputChange,
   handleSubmit,
   isLoading,
   stop,
+  disabled = false,
 }: InputAreaProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -64,14 +66,14 @@ export default function InputArea({
             ref={textareaRef}
             value={input}
             onChange={(e) => {
-              setInput(e)
+              handleInputChange(e)
               // Trigger resize after state update
               setTimeout(adjustTextareaHeight, 0)
             }}
             onKeyDown={handleKeyDown}
             placeholder="Type your message here..."
             className="min-h-[60px] max-h-[200px] pr-12 resize-none overflow-y-auto w-full"
-            disabled={isLoading}
+            disabled={isLoading || disabled}
             rows={1}
           />
           <div className="absolute bottom-2 right-2">

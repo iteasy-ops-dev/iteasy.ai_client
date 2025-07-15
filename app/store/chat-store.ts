@@ -13,7 +13,7 @@ interface ChatStore {
   selectChat: (chatId: string) => void
   deleteChat: (chatId: string) => void
   updateChatTitle: (chatId: string, title: string) => void
-  addMessage: (chatId: string, message: Omit<Message, 'id' | 'createdAt'>) => void
+  addMessage: (chatId: string, message: Omit<Message, 'id' | 'createdAt'>) => string
   getCurrentChat: () => Chat | null
   updateLastMessage: (chatId: string, content: string) => void
   updateMessageWithTokenUsage: (chatId: string, messageId: string, tokenUsage: TokenUsage) => void
@@ -80,6 +80,8 @@ export const useChatStore = create<ChatStore>()(
           id: generateId(),
           createdAt: new Date(),
         }
+        
+        // Removed debug log
 
         set((state) => ({
           chats: state.chats.map((chat) =>
@@ -99,6 +101,8 @@ export const useChatStore = create<ChatStore>()(
           const title = message.content.slice(0, 50) + (message.content.length > 50 ? '...' : '')
           get().updateChatTitle(chatId, title)
         }
+
+        return newMessage.id
       },
 
       updateLastMessage: (chatId: string, content: string) => {

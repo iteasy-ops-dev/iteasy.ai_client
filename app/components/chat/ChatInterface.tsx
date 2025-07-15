@@ -1,18 +1,21 @@
 'use client'
 
-import { useChat } from 'ai/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useChatStore } from '@/app/store/chat-store'
 import { useSettingsStore } from '@/app/store/settings-store'
 import { useHydration } from '@/app/hooks/useHydration'
+import { streamWithOpenAI, streamWithLocalLLM } from '@/app/lib/llm-providers'
+import { FontProvider } from '../FontProvider'
 import ChatSidebar from './ChatSidebar'
 import MessageList from './MessageList'
 import InputArea from './InputArea'
 import SettingsModal from './SettingsModal'
+import type { Message } from '@/app/types'
 
 export default function ChatInterface() {
   const isHydrated = useHydration()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Client-side state management
   
   const {
     chats,
@@ -32,6 +35,9 @@ export default function ChatInterface() {
     model,
     temperature,
     maxTokens,
+    llmProvider,
+    localLLMEndpoint,
+    localLLMModel,
     validateApiKey,
   } = useSettingsStore()
   
@@ -41,145 +47,172 @@ export default function ChatInterface() {
       useChatStore.persist.rehydrate()
       // Settings store now auto-hydrates, but ensure it's complete
       useSettingsStore.persist.rehydrate()
+      
+      // Reset currentChatId to null on fresh load to show welcome screen
+      useChatStore.setState({ currentChatId: null })
     }
   }, [isHydrated])
 
   const currentChat = getCurrentChat()
 
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit: originalHandleSubmit,
-    isLoading,
-    stop,
-    setMessages,
-    error,
-  } = useChat({
-    api: '/api/chat',
-    body: {
-      apiKey,
-      model,
-      temperature,
-      maxTokens,
-    },
-    onFinish: (message, options) => {
-      // Extract usage data and attach to the current chat
-      if (options.usage && currentChatId) {
-        const tokenUsage = {
-          promptTokens: options.usage.promptTokens || 0,
-          completionTokens: options.usage.completionTokens || 0,
-          totalTokens: options.usage.totalTokens || 0,
-          model: model,
-        }
-        
-        // Use a slight delay to ensure the message is saved to store first
-        setTimeout(() => {
-          const currentChat = getCurrentChat()
-          if (currentChat && currentChat.messages.length > 0) {
-            const lastMessage = currentChat.messages[currentChat.messages.length - 1]
-            if (lastMessage.role === 'assistant') {
-              updateMessageWithTokenUsage(currentChatId, lastMessage.id, tokenUsage)
-            }
-          }
-        }, 100)
-      }
-    },
-    onError: (error) => {
-      console.error('Chat error:', error)
-      // If it's an API key error, open settings
-      if (error.message.includes('API key') || error.message.includes('401')) {
-        setSettingsOpen(true)
-      }
-    },
-  })
+  // Client-side state
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Sync messages with store
-  useEffect(() => {
-    if (currentChat) {
-      setMessages(currentChat.messages.map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        createdAt: msg.createdAt,
-      })))
-    } else {
-      setMessages([])
-    }
-  }, [currentChatId, currentChat, setMessages])
-
-  // Sync changes back to store when messages change
-  useEffect(() => {
-    if (currentChatId && messages.length > 0) {
-      // Get the current chat from store
-      const storeChat = getCurrentChat()
-      const storeMessageCount = storeChat?.messages.length || 0
-      
-      // Only sync if we have NEW messages that aren't in the store yet
-      // This prevents copying messages when switching chats
-      if (messages.length > storeMessageCount) {
-        const newMessages = messages.slice(storeMessageCount)
-        // Only add messages that are actually new (not from store sync)
-        newMessages.forEach(msg => {
-          // Check if this message already exists in store to prevent duplicates
-          const messageExists = storeChat?.messages.some(storeMsg => 
-            storeMsg.content === msg.content && storeMsg.role === msg.role
-          )
-          
-          if (!messageExists) {
-            addMessage(currentChatId, {
-              role: msg.role as 'user' | 'assistant' | 'system' | 'data',
-              content: msg.content,
-            })
-          }
-        })
-      }
-      
-      // Update the last message if it's being streamed
-      if (isLoading && messages.length > 0) {
-        const lastMessage = messages[messages.length - 1]
-        if (lastMessage.role === 'assistant' && storeChat) {
-          const lastStoreMessage = storeChat.messages[storeChat.messages.length - 1]
-          if (lastStoreMessage && lastStoreMessage.role === 'assistant' && 
-              lastStoreMessage.content !== lastMessage.content) {
-            updateLastMessage(currentChatId, lastMessage.content)
-          }
-        }
-      }
-    }
-  }, [messages, isLoading, currentChatId, addMessage, updateLastMessage, getCurrentChat])
-
-  const handleSubmit = () => {
-    if (!input.trim()) return
-
-    // Check if hydration is complete and API key is set
-    if (!isHydrated || !validateApiKey()) {
-      if (isHydrated) {
-        setSettingsOpen(true)
-      }
-      return
-    }
-
-    // Create new chat if none exists
-    let chatId = currentChatId
-    if (!chatId) {
-      chatId = createNewChat()
-    }
-
-    // Submit to AI - the useEffect above will handle syncing to store
-    originalHandleSubmit()
+  // Input handler
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement> | React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value)
   }
 
+  // Submit handler with client-side LLM integration
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    
+    if (!input.trim() || isLoading) return
+    
+    // Validate API key for OpenAI
+    if (llmProvider === 'openai' && !apiKey) {
+      setError(new Error('Please configure your OpenAI API key'))
+      setSettingsOpen(true)
+      return
+    }
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input.trim(),
+      createdAt: new Date(),
+    }
+    
+    // Add user message to store
+    if (currentChatId) {
+      addMessage(currentChatId, userMessage)
+      
+      // Set title from first message
+      const chat = getCurrentChat()
+      if (chat && chat.messages.length === 0) {
+        const firstLine = userMessage.content.split('\\n')[0]
+        const title = firstLine.length > 30 
+          ? firstLine.substring(0, 30) + '...' 
+          : firstLine
+        updateChatTitle(currentChatId, title)
+      }
+    }
+    
+    // Clear input
+    setInput('')
+    setIsLoading(true)
+    setError(null)
+    
+    // Add assistant message to store and get the actual ID
+    let assistantMessageId = ''
+    if (currentChatId) {
+      assistantMessageId = addMessage(currentChatId, {
+        role: 'assistant',
+        content: '',
+      })
+      // Removed debug log
+    }
+    
+    try {
+      let fullContent = ''
+      
+      const onStream = (chunk: string) => {
+        fullContent += chunk
+        
+        // Update store message
+        if (currentChatId) {
+          updateLastMessage(currentChatId, fullContent)
+        }
+      }
+      
+      const onFinish = (usage?: any) => {
+        if (currentChatId) {
+          const tokenUsage = {
+            promptTokens: usage?.promptTokens || 0,
+            completionTokens: usage?.completionTokens || 0,
+            totalTokens: usage?.totalTokens || (usage?.promptTokens || 0) + (usage?.completionTokens || 0),
+            model: llmProvider === 'openai' ? model : localLLMModel,
+          }
+          
+          updateMessageWithTokenUsage(currentChatId, assistantMessageId, tokenUsage)
+          
+          // LangGraph Debug: Log intent classification result
+          if (usage?.intent) {
+            console.log('🧠 LangGraph Intent Analysis:', {
+              intent: usage.intent,
+              confidence: usage.confidence,
+              systemPrompt: usage.systemPrompt ? usage.systemPrompt.substring(0, 100) + '...' : 'No system prompt'
+            })
+          }
+        }
+      }
+      
+      // Convert messages to format expected by LLM
+      const currentMessages = currentChat?.messages || []
+      const llmMessages = currentMessages.concat(userMessage).map((msg: Message) => ({
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: msg.content,
+      }))
+      
+      if (llmProvider === 'openai') {
+        await streamWithOpenAI(
+          llmMessages,
+          {
+            provider: 'openai',
+            apiKey,
+            model,
+            temperature,
+            maxTokens,
+          },
+          onStream,
+          onFinish
+        )
+      } else {
+        await streamWithLocalLLM(
+          llmMessages,
+          {
+            provider: 'local',
+            endpoint: localLLMEndpoint,
+            model: localLLMModel,
+            temperature,
+            maxTokens,
+          },
+          onStream,
+          onFinish
+        )
+      }
+      
+    } catch (err) {
+      console.error('Chat error:', err)
+      setError(err as Error)
+      
+      // If it's an API key error, open settings
+      if ((err as Error).message.includes('API key') || (err as Error).message.includes('401')) {
+        setSettingsOpen(true)
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const stop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+      setIsLoading(false)
+    }
+  }
+
+  // Helper functions
   const handleNewChat = () => {
     createNewChat()
-    // Clear the useChat messages when creating a new chat
-    setMessages([])
   }
 
   const handleSelectChat = (chatId: string) => {
     selectChat(chatId)
-    // Clear current messages when switching chats
-    setMessages([])
   }
 
   const handleDeleteChat = (chatId: string) => {
@@ -212,7 +245,7 @@ export default function ChatInterface() {
   }
 
   return (
-    <>
+    <FontProvider>
       <div className="flex h-full">
         <ChatSidebar
           chats={chats}
@@ -228,15 +261,16 @@ export default function ChatInterface() {
           {currentChat ? (
             <>
               <MessageList 
-                messages={messages} 
+                messages={currentChat?.messages || []} 
                 isLoading={isLoading}
               />
               <InputArea
                 input={input}
-                setInput={handleInputChange}
+                handleInputChange={handleInputChange}
                 handleSubmit={handleSubmit}
                 isLoading={isLoading}
                 stop={stop}
+                disabled={!currentChatId}
               />
             </>
           ) : (
@@ -291,6 +325,6 @@ export default function ChatInterface() {
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
       />
-    </>
+    </FontProvider>
   )
 }
