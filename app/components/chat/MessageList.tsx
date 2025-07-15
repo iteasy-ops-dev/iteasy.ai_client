@@ -4,29 +4,57 @@ import { useEffect, useRef } from 'react'
 import { ScrollArea } from '@/app/components/ui/scroll-area'
 import { useChatStore } from '@/app/store/chat-store'
 import MessageItem from './MessageItem'
+import VirtualizedMessageList from './VirtualizedMessageList'
 import type { Message } from '@/app/types'
 
 interface MessageListProps {
   messages: Message[]
   isLoading?: boolean
+  virtualized?: boolean
+  height?: number
 }
 
-export default function MessageList({ messages, isLoading }: MessageListProps) {
+// Performance threshold for switching to virtualization
+const VIRTUALIZATION_THRESHOLD = 50
+
+export default function MessageList({ 
+  messages, 
+  isLoading = false, 
+  virtualized = false,
+  height = 600 
+}: MessageListProps) {
   const { getCurrentChat } = useChatStore()
   const currentChat = getCurrentChat()
   
-  // Use store messages if available (they have tokenUsage), fallback to useChat messages
+  // Use store messages if available (they have tokenUsage), fallback to prop messages
   const displayMessages = currentChat?.messages || messages
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Automatically enable virtualization for large message lists
+  const shouldVirtualize = virtualized || displayMessages.length > VIRTUALIZATION_THRESHOLD
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   useEffect(() => {
-    scrollToBottom()
-  }, [displayMessages])
+    if (!shouldVirtualize) {
+      scrollToBottom()
+    }
+  }, [displayMessages, shouldVirtualize])
 
+  // Use virtualized list for better performance with many messages
+  if (shouldVirtualize) {
+    return (
+      <VirtualizedMessageList 
+        messages={displayMessages} 
+        isLoading={isLoading}
+        height={height}
+      />
+    )
+  }
+
+  // Traditional scrollable list for smaller message counts
   return (
     <ScrollArea className="flex-1">
       <div className="space-y-0 h-full">
