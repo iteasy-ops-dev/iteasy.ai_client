@@ -27,15 +27,25 @@ async function handleCustomLLMStreaming(config: {
   if (isOllamaEndpoint) {
     // Ollama API format - combine messages into a single prompt
     const conversationPrompt = messages.map(msg => {
-      if (msg.role === 'system') return `System: ${msg.content}`
+      if (msg.role === 'system') {
+        // Check if this is a system prompt with tool results
+        if (msg.content.includes('## TOOL EXECUTION RESULTS:')) {
+          // Add clear separators and emphasis for tool results
+          return `=== SYSTEM INSTRUCTIONS ===\n${msg.content}\n=== END SYSTEM INSTRUCTIONS ===`
+        }
+        return `System: ${msg.content}`
+      }
       if (msg.role === 'user') return `User: ${msg.content}`
       if (msg.role === 'assistant') return `Assistant: ${msg.content}`
       return msg.content
-    }).join('\n')
+    }).join('\n\n')
+    
+    // Add instruction to use tool results at the end
+    const finalPrompt = conversationPrompt + '\n\nAssistant: (Please provide a response based on the actual tool execution results shown above, not general instructions)'
     
     requestBody = {
       model,
-      prompt: conversationPrompt,
+      prompt: finalPrompt,
       stream: true,
       options: {
         temperature,

@@ -4,6 +4,7 @@ import { useEffect, useRef, useMemo, memo } from 'react'
 import { VariableSizeList as List } from 'react-window'
 import { useChatStore } from '@/app/store/chat-store'
 import MessageItem from './MessageItem'
+import WaveText from '../ui/wave-text'
 import type { Message } from '@/app/types'
 
 interface VirtualizedMessageListProps {
@@ -36,7 +37,9 @@ const MessageRow = memo(function MessageRow({ index, style, data }: MessageRowPr
               <div className="h-4 w-4 rounded-full bg-primary animate-pulse" />
             </div>
             <div className="flex-1 space-y-2">
-              <div className="text-muted-foreground">Thinking...</div>
+              <div className="text-muted-foreground">
+                <WaveText text="Thinking..." className="text-muted-foreground" duration={1.2} delay={0.08} />
+              </div>
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ export interface ChatState {
   confidence: number
   systemPrompt?: string
   response?: string
+  detectedLanguage?: 'ko' | 'en'
   
   // ReAct Pattern Fields (Optional)
   complexityLevel?: 'simple' | 'complex' | 'multi_step'
@@ -17,6 +18,13 @@ export interface ChatState {
   reasoningChain?: ReActStep[]
   currentStep?: number
   toolsUsed?: string[]
+  
+  // Tool Execution Framework Fields
+  availableTools?: SystemTool[]
+  executionContext?: ExecutionContext
+  selectedTools?: string[]
+  toolExecutionResults?: ToolResult[]
+  requiresToolExecution?: boolean
 }
 
 export interface IntentClassificationResult {
@@ -46,6 +54,81 @@ export interface ToolResult {
   error?: string
   executionTime: number
 }
+
+// Enhanced Tool Execution Framework Types
+export interface ToolParameter {
+  name: string
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object'
+  description: string
+  required: boolean
+  defaultValue?: any
+  validation?: {
+    pattern?: string
+    min?: number
+    max?: number
+    enum?: any[]
+  }
+}
+
+export interface SecurityPolicy {
+  riskLevel: 'low' | 'medium' | 'high'
+  requiresConfirmation: boolean
+  allowedContexts: ExecutionContext[]
+  restrictions: string[]
+  auditRequired: boolean
+}
+
+export interface ExecutionContext {
+  environment: 'development' | 'staging' | 'production'
+  permissions: string[]
+  userId?: string
+  sessionId: string
+  timestamp: Date
+}
+
+export interface SystemTool {
+  id: string
+  name: string
+  category: ToolCategory
+  description: string
+  parameters: ToolParameter[]
+  examples: ToolExample[]
+  security: SecurityPolicy
+  execute: (params: Record<string, any>, context: ExecutionContext) => Promise<ToolResult>
+  validate?: (params: Record<string, any>) => ValidationResult
+}
+
+export interface ToolExample {
+  description: string
+  parameters: Record<string, any>
+  expectedResult: string
+}
+
+export interface ValidationResult {
+  valid: boolean
+  errors?: string[]
+  warnings?: string[]
+}
+
+export interface ToolRegistry {
+  tools: Map<string, SystemTool>
+  getByCategory: (category: ToolCategory) => SystemTool[]
+  getByRiskLevel: (level: 'low' | 'medium' | 'high') => SystemTool[]
+  search: (query: string) => SystemTool[]
+  validateTool: (toolId: string) => boolean
+}
+
+export type ToolCategory = 
+  | 'system_info'      // System information gathering
+  | 'file_operations'  // File read/write operations  
+  | 'network'          // Network diagnostics
+  | 'containers'       // Docker/Kubernetes operations
+  | 'cloud'            // Cloud platform operations
+  | 'databases'        // Database operations
+  | 'monitoring'       // Monitoring and metrics
+  | 'security'         // Security and compliance
+  | 'infrastructure'   // Infrastructure provisioning
+  | 'deployment'       // CI/CD and deployment
 
 export interface ComplexityDetectionResult {
   level: 'simple' | 'complex' | 'multi_step'

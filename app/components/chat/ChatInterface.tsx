@@ -12,6 +12,7 @@ import MessageList from './MessageList'
 import InputArea from './InputArea'
 import SettingsModal from './SettingsModal'
 import StatusBar from './StatusBar'
+import WaveText from '../ui/wave-text'
 
 export default function ChatInterface() {
   const isHydrated = useHydration()
@@ -102,7 +103,9 @@ export default function ChatInterface() {
             <h1 className="text-4xl font-bold text-foreground mb-4">
               ITEasy AI Agent
             </h1>
-            <p className="text-muted-foreground">Loading...</p>
+            <p className="text-muted-foreground">
+              <WaveText text="Loading..." className="text-muted-foreground" duration={1.2} delay={0.08} />
+            </p>
           </div>
         </div>
       </div>

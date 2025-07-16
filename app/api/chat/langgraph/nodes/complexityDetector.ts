@@ -77,7 +77,11 @@ function detectComplexity(
       simple: [
         'what is', 'define', 'explain', 'difference between',
         'command for', 'syntax', 'example', 'quick question',
-        '이란 무엇', '설명해', '차이점', '명령어', '문법', '예제'
+        '이란 무엇', '설명해', '차이점', '명령어', '문법', '예제',
+        // Server status checks are generally simple operations
+        '서버가 구동', '서버 구동', '서버 상태', '서버가 작동',
+        'server running', 'server status', 'server up', 'server alive',
+        '확인', 'check', '체크', 'ping', '연결'
       ]
     }
 

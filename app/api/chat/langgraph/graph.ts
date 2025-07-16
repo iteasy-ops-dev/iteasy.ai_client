@@ -2,9 +2,10 @@ import { END, START, StateGraph } from '@langchain/langgraph'
 import { ChatState } from './types'
 import { intentClassifierNode } from './nodes/intentClassifier'
 import { complexityDetectorNode } from './nodes/complexityDetector'
+import { toolExecutionNode } from './nodes/toolExecution'
 import { generalChatNode } from './nodes/generalChat'
 import { systemEngineerNode } from './nodes/systemEngineer'
-import { helpNode } from './nodes/helpNode'
+import { agentUsageGuideNode } from './nodes/helpNode'
 import { HumanMessage } from '@langchain/core/messages'
 
 // Define the graph
@@ -54,6 +55,22 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
       toolsUsed: {
         value: (x?: any, y?: any) => y ?? x ?? [],
       },
+      // Tool Execution Framework Fields
+      availableTools: {
+        value: (x?: any, y?: any) => y ?? x ?? [],
+      },
+      executionContext: {
+        value: (x?: any, y?: any) => y ?? x,
+      },
+      selectedTools: {
+        value: (x?: any, y?: any) => y ?? x ?? [],
+      },
+      toolExecutionResults: {
+        value: (x?: any, y?: any) => y ?? x ?? [],
+      },
+      requiresToolExecution: {
+        value: (x?: any, y?: any) => y ?? x ?? false,
+      },
     },
   })
 
@@ -63,9 +80,10 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
   })
   
   workflow.addNode('complexityDetector', complexityDetectorNode)
+  workflow.addNode('toolExecution', toolExecutionNode)
   workflow.addNode('generalChat', generalChatNode)
   workflow.addNode('systemEngineer', systemEngineerNode)
-  workflow.addNode('help', helpNode)
+  workflow.addNode('agentUsageGuide', agentUsageGuideNode)
 
   // Add edges from START to intentClassifier
   workflow.addEdge(START, 'intentClassifier' as any)
@@ -83,30 +101,29 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
       
       // Route based on intent and complexity
       if (state.intent === 'help' && state.confidence >= 0.7) {
-        console.log('→ Routing to: help')
-        return 'help'
+        console.log('→ Routing to: agentUsageGuide')
+        return 'agentUsageGuide'
       } else if (state.intent === 'system_engineering' && state.confidence >= 0.7) {
-        if (state.useReact) {
-          console.log('→ Routing to: systemEngineer (will use ReAct pattern)')
-        } else {
-          console.log('→ Routing to: systemEngineer (simple response)')
-        }
-        return 'systemEngineer'
+        console.log('→ Routing to: toolExecution (system engineering with tools)')
+        return 'toolExecution'
       }
       console.log('→ Routing to: generalChat')
       return 'generalChat'
     },
     {
       generalChat: 'generalChat',
-      systemEngineer: 'systemEngineer',
-      help: 'help',
+      toolExecution: 'toolExecution',
+      agentUsageGuide: 'agentUsageGuide',
     } as any
   )
 
-  // All nodes lead to END
+  // Add edge from toolExecution to systemEngineer
+  workflow.addEdge('toolExecution' as any, 'systemEngineer' as any)
+
+  // All final nodes lead to END
   workflow.addEdge('generalChat' as any, END)
   workflow.addEdge('systemEngineer' as any, END)
-  workflow.addEdge('help' as any, END)
+  workflow.addEdge('agentUsageGuide' as any, END)
 
   return workflow.compile()
 }

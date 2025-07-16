@@ -5,6 +5,7 @@ import { ScrollArea } from '@/app/components/ui/scroll-area'
 import { useChatStore } from '@/app/store/chat-store'
 import MessageItem from './MessageItem'
 import VirtualizedMessageList from './VirtualizedMessageList'
+import WaveText from '../ui/wave-text'
 import type { Message } from '@/app/types'
 
 interface MessageListProps {
@@ -87,7 +88,9 @@ export default function MessageList({
                 <div className="h-4 w-4 rounded-full bg-primary animate-pulse" />
               </div>
               <div className="flex-1 space-y-2">
-                <div className="text-muted-foreground">Thinking...</div>
+                <div className="text-muted-foreground">
+                  <WaveText text="Thinking..." className="text-muted-foreground" duration={1.2} delay={0.08} />
+                </div>
               </div>
             </div>
           </div>
