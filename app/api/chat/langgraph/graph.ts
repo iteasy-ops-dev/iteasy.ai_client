@@ -7,7 +7,7 @@ import { helpNode } from './nodes/helpNode'
 import { HumanMessage } from '@langchain/core/messages'
 
 // Define the graph
-export function createChatGraph(config: { apiKey: string; model?: string }) {
+export function createChatGraph(config: { apiKey: string; model?: string; useLocalClassification?: boolean }) {
   const workflow = new StateGraph<ChatState>({
     channels: {
       messages: {
@@ -75,7 +75,7 @@ export function createChatGraph(config: { apiKey: string; model?: string }) {
 // Helper function to process a message through the graph
 export async function processWithGraph(
   messages: any[],
-  config: { apiKey: string; model?: string }
+  config: { apiKey: string; model?: string; useLocalClassification?: boolean }
 ) {
   const graph = createChatGraph(config)
   

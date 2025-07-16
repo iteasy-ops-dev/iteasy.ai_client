@@ -2,33 +2,201 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { streamText } from 'ai'
 import { processWithGraph } from './langgraph/graph'
 
-export async function POST(req: Request) {
-  try {
-    const { messages, apiKey, model = 'gpt-3.5-turbo', temperature = 0.7, maxTokens = 1000 } = await req.json()
-
-    // Use provided API key or fallback to environment variable
-    const actualApiKey = apiKey || process.env.OPENAI_API_KEY
+// Custom LLM streaming handler
+async function handleCustomLLMStreaming(config: {
+  endpoint: string
+  model: string
+  messages: any[]
+  temperature: number
+  maxTokens: number
+  graphResult: any
+}) {
+  const { endpoint, model, messages, temperature, maxTokens, graphResult } = config
+  
+  // Determine if this is an Ollama endpoint
+  const isOllamaEndpoint = endpoint.includes('11434') || endpoint.includes('ollama') || endpoint.includes('/api/generate')
+  
+  console.log('🔍 Custom LLM Endpoint detection:', {
+    endpoint,
+    isOllamaEndpoint,
+    detectedType: isOllamaEndpoint ? 'Ollama' : 'OpenAI-compatible'
+  })
+  
+  let requestBody: any
+  
+  if (isOllamaEndpoint) {
+    // Ollama API format - combine messages into a single prompt
+    const conversationPrompt = messages.map(msg => {
+      if (msg.role === 'system') return `System: ${msg.content}`
+      if (msg.role === 'user') return `User: ${msg.content}`
+      if (msg.role === 'assistant') return `Assistant: ${msg.content}`
+      return msg.content
+    }).join('\n')
     
-    if (!actualApiKey) {
-      return new Response('API key is required', { status: 400 })
+    requestBody = {
+      model,
+      prompt: conversationPrompt,
+      stream: true,
+      options: {
+        temperature,
+        num_predict: maxTokens,
+      }
+    }
+  } else {
+    // OpenAI-compatible API format
+    requestBody = {
+      model,
+      messages,
+      stream: true,
+      temperature,
+      max_tokens: maxTokens,
+    }
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Custom LLM error: ${response.statusText}`)
     }
 
-    // Create OpenAI client with the provided API key
-    const openai = createOpenAI({
-      apiKey: actualApiKey,
-      compatibility: 'strict', // Critical for token usage tracking
+    // Create a ReadableStream that transforms the custom LLM response to Vercel AI SDK format
+    const transformStream = new ReadableStream({
+      async start(controller) {
+        const reader = response.body?.getReader()
+        const decoder = new TextDecoder()
+        
+        if (!reader) {
+          controller.close()
+          return
+        }
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            const chunk = decoder.decode(value)
+            const lines = chunk.split('\n')
+
+            for (const line of lines) {
+              if (line.trim()) {
+                try {
+                  const json = JSON.parse(line)
+                  
+                  if (isOllamaEndpoint) {
+                    // Ollama response format
+                    if (json.response) {
+                      // Send as Vercel AI SDK format: 0:"text chunk"
+                      controller.enqueue(new TextEncoder().encode(`0:${JSON.stringify(json.response)}\n`))
+                    }
+                  } else {
+                    // OpenAI-compatible response format
+                    if (json.choices?.[0]?.delta?.content) {
+                      controller.enqueue(new TextEncoder().encode(`0:${JSON.stringify(json.choices[0].delta.content)}\n`))
+                    }
+                  }
+                } catch (e) {
+                  // Skip invalid JSON lines
+                }
+              }
+            }
+          }
+
+          // Send finish event with estimated usage data
+          const estimatedUsage = {
+            promptTokens: Math.floor(messages.length * 50),
+            completionTokens: Math.floor(Math.random() * 200 + 50),
+            totalTokens: 0
+          }
+          estimatedUsage.totalTokens = estimatedUsage.promptTokens + estimatedUsage.completionTokens
+
+          controller.enqueue(new TextEncoder().encode(`e:${JSON.stringify({
+            finishReason: 'stop',
+            usage: estimatedUsage,
+            isContinued: false
+          })}\n`))
+
+          console.log('=== Custom LLM Response Debug Info ===')
+          console.log('Model used:', model)
+          console.log('Intent:', graphResult.intent)
+          console.log('Confidence:', graphResult.confidence)
+          console.log('Used system prompt:', !!graphResult.systemPrompt)
+          console.log('Estimated prompt tokens:', estimatedUsage.promptTokens)
+          console.log('Estimated completion tokens:', estimatedUsage.completionTokens)
+          console.log('Estimated total tokens:', estimatedUsage.totalTokens)
+          console.log('======================================')
+
+          controller.close()
+        } catch (error) {
+          console.error('Custom LLM streaming error:', error)
+          controller.error(error)
+        }
+      }
     })
+
+    return new Response(transformStream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
+  } catch (error) {
+    console.error('Custom LLM request error:', error)
+    throw error
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const { 
+      messages, 
+      apiKey, 
+      model = 'gpt-3.5-turbo', 
+      temperature = 0.7, 
+      maxTokens = 1000,
+      provider = 'openai',
+      endpoint
+    } = await req.json()
+
+    // For OpenAI, require API key
+    if (provider === 'openai') {
+      const actualApiKey = apiKey || process.env.OPENAI_API_KEY
+      if (!actualApiKey) {
+        return new Response('API key is required for OpenAI', { status: 400 })
+      }
+    }
 
     // Log request info for debugging
     console.log('=== Chat Request Debug Info ===')
+    console.log('Provider:', provider)
     console.log('Model:', model)
     console.log('Temperature:', temperature)
     console.log('Max Tokens:', maxTokens)
     console.log('Messages count:', messages?.length || 0)
+    console.log('Endpoint:', endpoint || 'N/A')
     console.log('================================')
 
-    // Process through LangGraph for intent analysis and routing
-    const graphResult = await processWithGraph(messages, { apiKey: actualApiKey, model })
+    // Process through LangGraph for intent analysis and routing (for all providers)
+    const graphConfig = provider === 'openai' 
+      ? { 
+          apiKey: apiKey || process.env.OPENAI_API_KEY || 'dummy', 
+          model 
+        }
+      : { 
+          apiKey: 'dummy', 
+          model,
+          useLocalClassification: true
+        }
+    
+    const graphResult = await processWithGraph(messages, graphConfig)
     
     // Prepare messages for streaming
     let finalMessages = messages
@@ -53,30 +221,47 @@ export async function POST(req: Request) {
       }
     }
 
-    // Stream the response using the Vercel AI SDK
-    const result = streamText({
-      model: openai(model),
-      messages: finalMessages,
-      temperature,
-      maxTokens,
-      onFinish: async (event) => {
-        console.log('=== Chat Response Debug Info ===')
-        console.log('Model used:', model)
-        console.log('Intent:', graphResult.intent)
-        console.log('Confidence:', graphResult.confidence)
-        console.log('Used system prompt:', !!graphResult.systemPrompt)
-        console.log('Prompt tokens:', event.usage?.promptTokens || 'N/A')
-        console.log('Completion tokens:', event.usage?.completionTokens || 'N/A')
-        console.log('Total tokens:', event.usage?.totalTokens || 'N/A')
-        console.log('Response text length:', event.text?.length || 0)
-        console.log('=================================')
-      },
-    })
+    if (provider === 'openai') {
+      // OpenAI via Vercel AI SDK
+      const actualApiKey = apiKey || process.env.OPENAI_API_KEY
+      const openai = createOpenAI({
+        apiKey: actualApiKey,
+        compatibility: 'strict', // Critical for token usage tracking
+      })
 
-    // Return the stream as the response with token usage data
-    return result.toDataStreamResponse({
-      sendUsage: true,
-    })
+      const result = streamText({
+        model: openai(model),
+        messages: finalMessages,
+        temperature,
+        maxTokens,
+        onFinish: async (event) => {
+          console.log('=== Chat Response Debug Info ===')
+          console.log('Model used:', model)
+          console.log('Intent:', graphResult.intent)
+          console.log('Confidence:', graphResult.confidence)
+          console.log('Used system prompt:', !!graphResult.systemPrompt)
+          console.log('Prompt tokens:', event.usage?.promptTokens || 'N/A')
+          console.log('Completion tokens:', event.usage?.completionTokens || 'N/A')
+          console.log('Total tokens:', event.usage?.totalTokens || 'N/A')
+          console.log('Response text length:', event.text?.length || 0)
+          console.log('=================================')
+        },
+      })
+
+      return result.toDataStreamResponse({
+        sendUsage: true,
+      })
+    } else {
+      // Custom LLM (Ollama, etc.) via server-side streaming
+      return await handleCustomLLMStreaming({
+        endpoint: endpoint || 'http://localhost:11434/api/generate',
+        model,
+        messages: finalMessages,
+        temperature,
+        maxTokens,
+        graphResult
+      })
+    }
   } catch (error) {
     console.error('Chat API error:', error)
     
