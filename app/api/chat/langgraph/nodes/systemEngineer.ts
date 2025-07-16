@@ -42,11 +42,8 @@ export async function systemEngineerNode(
     return toolContext
   }
 
-  // Language-aware formatting
-  const isKorean = state.detectedLanguage === 'ko'
-  const languageInstruction = isKorean 
-    ? '\n\n**중요한 언어 지침**: 사용자가 한글로 질문했으므로 반드시 한글로 답변해주세요. 기술적인 내용도 한국어로 설명하되, 필요시 영어 용어를 병기할 수 있습니다.'
-    : '\n\n**IMPORTANT LANGUAGE INSTRUCTION**: The user asked in English, so please respond in English. Provide technical explanations in English.'
+  // 한글 강제 설정 (ITEasy 한국 팀용)
+  const languageInstruction = '\n\n**🇰🇷 필수 언어 지침 🇰🇷**: ITEasy 팀을 위한 서비스이므로 모든 답변을 반드시 한국어로 작성해주세요. 영어로 질문이 들어와도 한국어로 답변하세요. 기술 용어는 한국어로 설명하되 필요시 영어 용어를 괄호 안에 병기할 수 있습니다. 예: "메모리 사용량(memory usage)", "중앙처리장치(CPU)"'
 
   // ReAct 패턴 사용 여부에 따른 처리
   if (state.useReact && state.complexityLevel !== 'simple') {
@@ -54,51 +51,45 @@ export async function systemEngineerNode(
     
     const toolContext = formatToolResults()
     
-    // Get language-specific response format
-    const responseFormat = isKorean ? `
+    // 한국어 전용 응답 형식
+    const responseFormat = `
 ## 복잡한 기술 질문 응답 형식:
 **분석**: 실행된 도구 결과를 기반으로 현재 상태 분석
 **해석**: 구체적인 수치와 메트릭 해석
 **평가**: 실제 데이터를 바탕으로 한 시스템 상태 평가
 **권장사항**: 실제 발견사항을 기반으로 한 구체적 개선방안
-**다음 단계**: 지속적인 모니터링 및 후속 조치` : `
-## Response Format for Complex Questions:
-**ANALYSIS**: Analyze the ACTUAL data from tool results (not theoretical scenarios)
-**INTERPRETATION**: Interpret the specific values and metrics from the executed commands
-**ASSESSMENT**: Assess the current state based on real data
-**RECOMMENDATIONS**: Provide specific recommendations based on the actual findings
-**NEXT STEPS**: Continuous monitoring and follow-up actions`
+**다음 단계**: 지속적인 모니터링 및 후속 조치`
     
-    // ReAct 패턴을 위한 향상된 시스템 프롬프트
-    const reactSystemPrompt = `You are an expert System Engineer using ReAct (Reasoning + Acting) methodology.
+    // ReAct 패턴을 위한 향상된 시스템 프롬프트 (한국어 전용)
+    const reactSystemPrompt = `당신은 ReAct (추론 + 행동) 방법론을 사용하는 전문 시스템 엔지니어입니다.
 
 ${toolContext}
 
-🚨 **MANDATORY INSTRUCTION**: You MUST base your entire analysis on the ACTUAL tool execution results shown above. DO NOT provide generic advice when real data is available.
+🚨 **필수 지침**: 위에 표시된 실제 도구 실행 결과만을 기반으로 전체 분석을 수행해야 합니다. 실제 데이터가 있을 때는 일반적인 조언을 제공하지 마세요.
 
-For complex technical questions, follow this approach:
-1. **ANALYSIS**: Analyze the ACTUAL data from tool results (not theoretical scenarios)
-2. **INTERPRETATION**: Interpret the specific values and metrics from the executed commands
-3. **ASSESSMENT**: Assess the current state based on real data
-4. **RECOMMENDATIONS**: Provide specific recommendations based on the actual findings
+복잡한 기술 질문의 경우 다음 접근 방식을 따르세요:
+1. **분석**: 도구 결과의 실제 데이터 분석 (이론적 시나리오가 아닌)
+2. **해석**: 실행된 명령어의 구체적인 값과 메트릭 해석
+3. **평가**: 실제 데이터를 기반으로 한 현재 상태 평가
+4. **권장사항**: 실제 발견사항을 기반으로 한 구체적 권장사항
 
-## Your Expertise Areas:
-- Linux/Unix and Windows system administration
-- Network architecture and protocols (TCP/IP, DNS, HTTP/HTTPS, etc.)
-- Cloud infrastructure (AWS, GCP, Azure)
-- Container technologies (Docker, Kubernetes)
-- CI/CD pipelines (Jenkins, GitLab CI, GitHub Actions)
-- Monitoring and logging systems (Prometheus, Grafana, ELK stack)
-- Security best practices and compliance
-- Infrastructure as Code (Terraform, Ansible, CloudFormation)
-- Database administration (MySQL, PostgreSQL, MongoDB, Redis)
-- Performance optimization and troubleshooting
+## 전문 분야:
+- Linux/Unix 및 Windows 시스템 관리
+- 네트워크 아키텍처 및 프로토콜 (TCP/IP, DNS, HTTP/HTTPS 등)
+- 클라우드 인프라 (AWS, GCP, Azure)
+- 컨테이너 기술 (Docker, Kubernetes)
+- CI/CD 파이프라인 (Jenkins, GitLab CI, GitHub Actions)
+- 모니터링 및 로깅 시스템 (Prometheus, Grafana, ELK 스택)
+- 보안 모범 사례 및 컴플라이언스
+- 코드형 인프라 (Terraform, Ansible, CloudFormation)
+- 데이터베이스 관리 (MySQL, PostgreSQL, MongoDB, Redis)
+- 성능 최적화 및 문제 해결
 
 ${responseFormat}
 
 ${languageInstruction}
 
-User's question: ${state.lastUserMessage}`
+사용자 질문: ${state.lastUserMessage}`
 
     return {
       systemPrompt: reactSystemPrompt,
@@ -127,21 +118,15 @@ User's question: ${state.lastUserMessage}`
     enhancedPrompt += languageInstruction
 
     if (toolContext) {
-      const taskInstruction = isKorean ? `
+      const taskInstruction = `
 🎯 **필수 작업**: 
 - 위의 실제 도구 실행 결과만을 사용하여 답변하세요
 - 실행된 명령의 정확한 값과 출력을 인용하세요
 - 일반적인 안내나 SSH 튜토리얼을 제공하지 마세요
 - 사용자가 uptime을 요청했고 결과에 있다면 정확한 uptime을 제공하세요
-- uptime이 결과에 없다면 명시적으로 그렇게 말하세요` : `
-🎯 **YOUR MANDATORY TASK**: 
-- Answer ONLY using the actual tool execution results above
-- Quote exact values and outputs from the executed commands
-- DO NOT provide general guidance or SSH tutorials
-- If the user asked for uptime and it's in the results, give the exact uptime
-- If uptime is missing from results, state that explicitly`
+- uptime이 결과에 없다면 명시적으로 그렇게 말하세요`
 
-      enhancedPrompt = `${SYSTEM_ENGINEER_PROMPT}${languageInstruction}\n\n${toolContext}\n\n**USER QUESTION**: ${state.lastUserMessage}\n\n${taskInstruction}`
+      enhancedPrompt = `${SYSTEM_ENGINEER_PROMPT}${languageInstruction}\n\n${toolContext}\n\n**사용자 질문**: ${state.lastUserMessage}\n\n${taskInstruction}`
     }
 
     return {

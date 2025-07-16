@@ -39,13 +39,10 @@ export async function generalChatNode(
     }
   }
 
-  // Create language-aware system prompt for general chat
-  const isKorean = state.detectedLanguage === 'ko'
-  const languageInstruction = isKorean 
-    ? '\n\n**중요한 언어 지침**: 사용자가 한글로 질문했으므로 반드시 한글로 답변해주세요. 자연스럽고 친근한 한국어를 사용하세요.'
-    : '\n\n**IMPORTANT LANGUAGE INSTRUCTION**: The user asked in English, so please respond in English. Use natural and friendly English.'
+  // ITEasy 한국 팀을 위한 한글 전용 설정
+  const languageInstruction = '\n\n**🇰🇷 필수 언어 지침 🇰🇷**: ITEasy 팀을 위한 서비스이므로 모든 답변을 반드시 한국어로 작성해주세요. 영어로 질문이 들어와도 한국어로 답변하세요. 자연스럽고 친근한 한국어를 사용하며, 기술 용어는 한국어로 설명하되 필요시 영어 용어를 괄호 안에 병기할 수 있습니다.'
 
-  const systemPrompt = `You are a helpful and friendly AI assistant. Provide informative, engaging responses to user questions and conversations.${sshContextInfo}${languageInstruction}`
+  const systemPrompt = `당신은 도움이 되고 친근한 AI 어시스턴트입니다. 사용자 질문과 대화에 유익하고 흥미로운 한국어 응답을 제공하세요.${sshContextInfo}${languageInstruction}`
 
   return {
     systemPrompt,
