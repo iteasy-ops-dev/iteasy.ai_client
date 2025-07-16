@@ -486,15 +486,223 @@ app/api/chat/langgraph/
 
 ## 향후 개선 방향
 
+### UI/UX 개선
 1. **사이드바 상태 영속성**: 사이드바 접기/펼치기 상태를 localStorage에 저장
 2. **키보드 단축키**: 사이드바 토글을 위한 키보드 단축키 지원
-3. **테스트 추가**: 현재 테스트가 없으므로 Jest/Testing Library 도입 필요
-4. **SSH 키 파일 지원**: 비밀번호 외 SSH 키 기반 인증 구현
-5. **다중 서버 관리**: 여러 SSH 연결을 동시에 관리하는 기능
-6. **명령어 히스토리**: 실행된 SSH 명령어 기록 및 재실행 기능
-7. **접근성**: ARIA 속성 및 키보드 네비게이션 개선
-8. **PWA**: 오프라인 지원 및 푸시 알림
-9. **모니터링**: 사용량 통계 및 성능 모니터링
-10. **폰트 크기 조절**: 사용자 맞춤형 텍스트 크기 설정
-11. **커스텀 테마**: 사용자 정의 색상 테마 지원
-12. **모바일 최적화**: 터치 기반 사이드바 제스처 지원
+3. **폰트 크기 조절**: 사용자 맞춤형 텍스트 크기 설정
+4. **커스텀 테마**: 사용자 정의 색상 테마 지원
+5. **모바일 최적화**: 터치 기반 사이드바 제스처 지원
+6. **접근성**: ARIA 속성 및 키보드 네비게이션 개선
+
+### ReAct 시스템 고도화 (우선순위)
+7. **진정한 ReAct 순환 구현**: Think-Act-Observe 실제 반복 로직
+8. **동적 도구 선택 시스템**: 중간 결과 기반 다음 도구 결정
+9. **멀티턴 대화 지원**: 사용자와 상호작용적 문제 해결
+10. **컨텍스트 지속성 강화**: 복잡한 ReAct 상태 관리 및 추론 체인 확장
+11. **지능형 종료 조건**: 충분한 정보 수집 시점 자동 판단
+12. **병렬 조사 기능**: 여러 가설 동시 조사 및 결과 통합
+
+### 인프라 및 기능 확장
+13. **SSH 키 파일 지원**: 비밀번호 외 SSH 키 기반 인증 구현
+14. **다중 서버 관리**: 여러 SSH 연결을 동시에 관리하는 기능
+15. **명령어 히스토리**: 실행된 SSH 명령어 기록 및 재실행 기능
+16. **테스트 추가**: Jest/Testing Library 도입으로 안정성 향상
+
+### 고급 기능
+17. **PWA**: 오프라인 지원 및 푸시 알림
+18. **모니터링**: 사용량 통계 및 성능 모니터링
+19. **학습 기능**: 이전 ReAct 세션 학습으로 효율성 개선
+20. **자율적 문제 해결**: 최소 사용자 개입으로 복잡한 문제 해결
+
+## 최신 업데이트 (v1.5.0) - 2025-01-17
+
+### 한국어 언어 강제 적용 (commit: 08b57f6)
+
+#### 언어 통일화 구현
+- **조건부 언어 감지 제거**: 모든 노드에서 사용자 언어 감지 및 매칭 로직 제거
+- **한국어 전용 시스템**: ITEasy 팀을 위한 일관된 한국어 응답 보장
+- **언어 강제 지침**: 영어 질문에도 한국어로 응답하도록 명시적 지침 추가
+
+#### 수정된 노드들
+```typescript
+// 기존: 조건부 언어 매칭
+const isKorean = state.detectedLanguage === 'ko'
+const languageInstruction = isKorean ? '한글로...' : 'English...'
+
+// 개선: 한국어 강제
+const languageInstruction = '🇰🇷 필수 언어 지침 🇰🇷: ITEasy 팀을 위한 서비스이므로 모든 답변을 반드시 한국어로...'
+```
+
+#### 업데이트된 파일들
+- **systemEngineer.ts**: 기술 용어 한국어 설명 + 영어 병기 가이드
+- **generalChat.ts**: 친근한 한국어 대화 시스템
+- **helpNode.ts**: 한국어 사용법 가이드 강화
+- **intentClassification.ts**: 모든 프롬프트 템플릿 한국어 변환
+
+## ReAct 시스템 분석 및 개선 방향
+
+### 현재 구현 상태 (완성도: 65-70%)
+
+#### 🟢 잘 구현된 부분
+1. **체계적인 복잡도 탐지**
+   - 3단계 복잡도 분류 (simple/complex/multi_step)
+   - 한국어/영어 양방향 패턴 매칭
+   - 휴리스틱 기반 메시지 분석 (길이, 질문 수, 다중 주제)
+
+2. **도구 통합 및 실행**
+   - SSH 원격 도구 체계적 연동
+   - 토큰 최적화된 명령어 선택 (93% 절약)
+   - 구조화된 실행 결과 포맷팅
+
+3. **상태 관리 시스템**
+   - `reasoningChain` 추론 과정 추적
+   - `currentStep` 단계별 진행 상황 관리
+   - SSH 컨텍스트 지속성 구현
+
+#### 🟡 부족한 부분
+1. **표면적 ReAct 구현**
+   ```typescript
+   // 현재: 단순 프롬프트 강화
+   const reactSystemPrompt = `ReAct 방법론을 사용하는 전문가...`
+   
+   // 필요: 실제 Think-Act-Observe 순환
+   Think → Act → Observe → Think → Act → ...
+   ```
+
+2. **1회성 처리 한계**
+   - 한 번의 응답으로 완료
+   - 중간 결과 기반 재분석 부재
+   - 도구 결과로 다음 행동 결정 없음
+
+3. **정적 도구 선택**
+   - 초기에 모든 도구 일괄 선택
+   - 중간 결과 기반 추가 도구 선택 불가
+
+#### 🔴 핵심 한계점
+
+1. **Static ReAct Pattern**
+   ```typescript
+   // 현재: 정적 처리
+   if (state.useReact) {
+     // 도구 실행 → 응답 생성 → 종료
+   }
+   
+   // 필요: 동적 순환
+   while (needsMoreInformation) {
+     const thought = await think(currentState)
+     const action = await selectAndExecuteTools(thought)
+     const observation = await analyzeResults(action)
+     if (observation.isComplete) break
+     currentState = updateState(currentState, observation)
+   }
+   ```
+
+2. **멀티턴 대화 부재**
+   - 단일 응답만 생성
+   - "더 조사가 필요합니다" 같은 후속 질문 없음
+   - 사용자와의 상호작용적 문제 해결 부족
+
+### 개선 필요 항목
+
+#### Phase 1: 진정한 ReAct 순환 구현
+```typescript
+// 새로운 ReAct 노드 구조
+async function reactNode(state: ChatState): Promise<NodeResponse> {
+  const maxIterations = 5
+  let currentIteration = 0
+  let needsContinuation = true
+  
+  while (needsContinuation && currentIteration < maxIterations) {
+    // THINK: 현재 상황 분석
+    const thought = await analyzeCurrentSituation(state)
+    
+    // ACT: 필요한 도구 선택 및 실행
+    const action = await selectAndExecuteTools(thought)
+    
+    // OBSERVE: 결과 분석 및 다음 단계 결정
+    const observation = await analyzeResults(action)
+    
+    needsContinuation = observation.requiresMoreInvestigation
+    currentIteration++
+  }
+}
+```
+
+#### Phase 2: 동적 도구 선택 시스템
+```typescript
+function selectNextTools(
+  previousResults: ToolResult[],
+  currentThought: string,
+  userQuestion: string
+): SystemTool[] {
+  // 이전 결과 분석
+  const analysisResults = analyzePreviousResults(previousResults)
+  
+  // 부족한 정보 식별
+  const missingInfo = identifyMissingInformation(analysisResults, userQuestion)
+  
+  // 다음 필요 도구 결정
+  return determineRequiredTools(missingInfo)
+}
+```
+
+#### Phase 3: 멀티턴 대화 지원
+```typescript
+interface ReactResponse {
+  response?: string
+  needsUserInput?: boolean
+  question?: string
+  suggestedActions?: string[]
+  continuationState?: ReActState
+}
+
+// 사용자 추가 입력 필요 시
+if (needsMoreInformation && !canObtainAutomatically) {
+  return {
+    needsUserInput: true,
+    question: "추가로 확인하고 싶은 로그 파일 경로가 있나요?",
+    suggestedActions: [
+      "/var/log/nginx/error.log 확인",
+      "/var/log/syslog 분석",
+      "사용자 정의 경로 입력"
+    ]
+  }
+}
+```
+
+#### Phase 4: 컨텍스트 지속성 강화
+```typescript
+interface EnhancedChatState extends ChatState {
+  reactHistory: ReActStep[]
+  investigationPath: InvestigationNode[]
+  accumulatedEvidence: Evidence[]
+  hypotheses: Hypothesis[]
+  confidence: number
+}
+```
+
+### 향후 개발 로드맵
+
+#### 단기 목표 (1-2주)
+1. **ReAct 순환 구현**: Think-Act-Observe 실제 순환 로직
+2. **동적 도구 선택**: 중간 결과 기반 다음 도구 결정
+3. **상태 추적 강화**: 상세한 추론 과정 기록
+
+#### 중기 목표 (1개월)
+4. **멀티턴 대화**: 사용자와 상호작용적 문제 해결
+5. **지능형 종료 조건**: 언제 충분한 정보를 수집했는지 판단
+6. **결과 통합**: 여러 단계의 조사 결과 종합 분석
+
+#### 장기 목표 (2-3개월)
+7. **학습 기능**: 이전 ReAct 세션에서 학습하여 효율성 개선
+8. **병렬 조사**: 여러 가설을 동시에 조사하는 기능
+9. **자율적 문제 해결**: 최소한의 사용자 개입으로 복잡한 문제 해결
+
+### 기술적 도전과제
+
+1. **성능 최적화**: 반복적 조사로 인한 토큰 사용량 증가 관리
+2. **상태 복잡도**: 복잡한 ReAct 상태 관리 및 직렬화
+3. **사용자 경험**: 긴 조사 과정에서도 유용한 중간 피드백 제공
+4. **에러 처리**: ReAct 순환 중 실패 상황 적절한 복구
+
+이러한 개선을 통해 현재 65-70% 수준의 ReAct 구현을 95% 이상의 완성도로 끌어올릴 수 있을 것입니다.
