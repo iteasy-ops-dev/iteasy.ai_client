@@ -9,12 +9,10 @@ export interface ChatState {
   response?: string
   detectedLanguage?: 'ko' | 'en'
   
-  // ReAct Pattern Fields (Optional)
-  complexityLevel?: 'simple' | 'complex' | 'multi_step'
+  // Enhanced ReAct Pattern Fields
+  complexityLevel?: 'simple' | 'complex' | 'multi_step' | 'dynamic'
   useReact?: boolean
-  thoughts?: string[]
-  actions?: ToolCall[]
-  observations?: ToolResult[]
+  reactState?: ReActState
   reasoningChain?: ReActStep[]
   currentStep?: number
   toolsUsed?: string[]
@@ -47,13 +45,63 @@ export interface IntentClassificationResult {
   reasoning?: string
 }
 
-// ReAct Pattern Types
+// Enhanced ReAct Pattern Types
 export interface ReActStep {
   step: number
   thought: string
   action?: ToolCall
   observation?: ToolResult
   timestamp: Date
+  needsContinuation?: boolean
+  confidence?: number
+}
+
+export interface ReActState {
+  currentIteration: number
+  maxIterations: number
+  completed: boolean
+  finalAnswer?: string
+  accumulatedEvidence: Evidence[]
+  hypotheses: Hypothesis[]
+  investigationPath: InvestigationNode[]
+  confidence: number
+}
+
+export interface Evidence {
+  id: string
+  source: string
+  data: any
+  reliability: number
+  timestamp: Date
+  relevanceScore: number
+}
+
+export interface Hypothesis {
+  id: string
+  description: string
+  confidence: number
+  supportingEvidence: string[]
+  contradictingEvidence: string[]
+  status: 'active' | 'confirmed' | 'rejected'
+}
+
+export interface InvestigationNode {
+  id: string
+  question: string
+  method: string
+  result?: any
+  children: string[]
+  parent?: string
+  status: 'pending' | 'investigating' | 'completed' | 'failed'
+}
+
+export interface ReActResponse {
+  response?: string
+  needsUserInput?: boolean
+  question?: string
+  suggestedActions?: string[]
+  continuationState?: ReActState
+  isComplete: boolean
 }
 
 export interface ToolCall {
@@ -145,7 +193,7 @@ export type ToolCategory =
   | 'deployment'       // CI/CD and deployment
 
 export interface ComplexityDetectionResult {
-  level: 'simple' | 'complex' | 'multi_step'
+  level: 'simple' | 'complex' | 'multi_step' | 'dynamic'
   reasoning: string
   confidence: number
   useReact: boolean

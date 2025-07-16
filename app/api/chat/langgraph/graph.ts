@@ -6,6 +6,8 @@ import { toolExecutionNode } from './nodes/toolExecution'
 import { generalChatNode } from './nodes/generalChat'
 import { systemEngineerNode } from './nodes/systemEngineer'
 import { agentUsageGuideNode } from './nodes/helpNode'
+import { reactEngineNode } from './nodes/reactEngine'
+import { dynamicToolExecutorNode } from './nodes/dynamicToolExecutor'
 import { HumanMessage } from '@langchain/core/messages'
 
 // Define the graph
@@ -37,14 +39,8 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
       useReact: {
         value: (x?: any, y?: any) => y ?? x,
       },
-      thoughts: {
-        value: (x?: any, y?: any) => y ?? x ?? [],
-      },
-      actions: {
-        value: (x?: any, y?: any) => y ?? x ?? [],
-      },
-      observations: {
-        value: (x?: any, y?: any) => y ?? x ?? [],
+      reactState: {
+        value: (x?: any, y?: any) => y ?? x,
       },
       reasoningChain: {
         value: (x?: any, y?: any) => y ?? x ?? [],
@@ -88,6 +84,10 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
   workflow.addNode('generalChat', generalChatNode)
   workflow.addNode('systemEngineer', systemEngineerNode)
   workflow.addNode('agentUsageGuide', agentUsageGuideNode)
+  workflow.addNode('reactEngine', reactEngineNode)
+  workflow.addNode('dynamicToolExecutor', async (state: ChatState) => {
+    return await dynamicToolExecutorNode(state, config)
+  })
 
   // Add edges from START to intentClassifier
   workflow.addEdge(START, 'intentClassifier' as any)
@@ -108,8 +108,17 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
         console.log('→ Routing to: agentUsageGuide')
         return 'agentUsageGuide'
       } else if (state.intent === 'system_engineering' && state.confidence >= 0.7) {
-        console.log('→ Routing to: toolExecution (system engineering with tools)')
-        return 'toolExecution'
+        // Check complexity level for appropriate routing
+        if (state.complexityLevel === 'dynamic') {
+          console.log('→ Routing to: dynamicToolExecutor (dynamic command generation)')
+          return 'dynamicToolExecutor'
+        } else if (state.useReact && state.complexityLevel === 'complex') {
+          console.log('→ Routing to: reactEngine (complex system engineering)')
+          return 'reactEngine'
+        } else {
+          console.log('→ Routing to: toolExecution (system engineering with tools)')
+          return 'toolExecution'
+        }
       }
       console.log('→ Routing to: generalChat')
       return 'generalChat'
@@ -118,6 +127,8 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
       generalChat: 'generalChat',
       toolExecution: 'toolExecution',
       agentUsageGuide: 'agentUsageGuide',
+      reactEngine: 'reactEngine',
+      dynamicToolExecutor: 'dynamicToolExecutor',
     } as any
   )
 
@@ -128,6 +139,8 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
   workflow.addEdge('generalChat' as any, END)
   workflow.addEdge('systemEngineer' as any, END)
   workflow.addEdge('agentUsageGuide' as any, END)
+  workflow.addEdge('reactEngine' as any, END)
+  workflow.addEdge('dynamicToolExecutor' as any, END)
 
   return workflow.compile()
 }

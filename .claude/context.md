@@ -496,9 +496,9 @@ app/api/chat/langgraph/
 
 ### ReAct 시스템 고도화 (우선순위)
 7. **진정한 ReAct 순환 구현**: Think-Act-Observe 실제 반복 로직
-8. **동적 도구 선택 시스템**: 중간 결과 기반 다음 도구 결정
+8. ✅ **동적 도구 선택 시스템**: 중간 결과 기반 다음 도구 결정 (완료 - SSH 연결 기반 자동 라우팅)
 9. **멀티턴 대화 지원**: 사용자와 상호작용적 문제 해결
-10. **컨텍스트 지속성 강화**: 복잡한 ReAct 상태 관리 및 추론 체인 확장
+10. ✅ **컨텍스트 지속성 강화**: 복잡한 ReAct 상태 관리 및 추론 체인 확장 (완료 - SSH 컨텍스트 지속성 v1.4.0)
 11. **지능형 종료 조건**: 충분한 정보 수집 시점 자동 판단
 12. **병렬 조사 기능**: 여러 가설 동시 조사 및 결과 통합
 
@@ -706,3 +706,325 @@ interface EnhancedChatState extends ChatState {
 4. **에러 처리**: ReAct 순환 중 실패 상황 적절한 복구
 
 이러한 개선을 통해 현재 65-70% 수준의 ReAct 구현을 95% 이상의 완성도로 끌어올릴 수 있을 것입니다.
+
+## 최신 업데이트 (v1.6.0) - 2025-01-17
+
+### LangGraph UnreachableNodeError 수정 및 SSH 라우팅 개선 (commit: current)
+
+#### 주요 수정사항
+- **ReAct 엔진 노드 연결 문제 해결**: `reactEngine` 노드가 그래프에서 연결되지 않아 발생한 UnreachableNodeError 수정
+- **조건부 라우팅 개선**: 복잡한 시스템 엔지니어링 질문에 대해 ReAct 엔진으로 라우팅하는 로직 추가
+- **타입 안전성 강화**: SSH 연결, Buffer 처리, fetch timeout 관련 TypeScript 오류 해결
+
+#### SSH 라우팅 최적화
+- **복잡도 탐지 로직 개선**: SSH 연결 정보가 포함된 단순한 시스템 질문을 'simple'로 분류
+- **직접 도구 실행**: "운영체제 알려줘" 같은 SSH + 정보 조회 질문을 ReAct 대신 `toolExecution`으로 직접 라우팅
+- **키워드 확장**: 시스템 정보 조회 관련 키워드 대폭 확장 ('운영체제', '호스트네임', '버전', '알려줘' 등)
+
+#### 기술적 개선
+```typescript
+// 개선된 라우팅 로직
+if (hasSSHInfo && isInfoQuery) {
+  return {
+    level: 'simple',
+    reasoning: 'SSH connection with simple info query detected - using direct tool execution',
+    confidence: 0.9,
+    useReact: false
+  }
+}
+```
+
+#### 문제 해결 효과
+- **SSH 원격 서버 접속 복원**: 업데이트 이후 작동하지 않던 SSH 연결 기능 정상화
+- **응답 속도 향상**: 단순한 정보 조회 시 ReAct 순환 생략으로 더 빠른 응답
+- **안정성 향상**: 그래프 컴파일 오류 해결 및 타입 안전성 확보
+
+### 완료된 개선사항 현황
+- ✅ **동적 도구 선택 시스템**: SSH 연결 기반 자동 라우팅 완료
+- ✅ **컨텍스트 지속성 강화**: SSH 컨텍스트 지속성 (v1.4.0) 완료
+- ✅ **그래프 안정성**: LangGraph 노드 연결 및 컴파일 오류 해결 완료
+
+## 동적 명령어 시스템 설계 (v1.7.0 개발 예정)
+
+### 현재 정적 도구 시스템의 한계
+
+#### 🚨 핵심 문제점
+1. **정적 명령어 제약**: 미리 정의된 명령어만 사용 가능
+2. **OS 호환성 부족**: Linux 중심 명령어로 Windows/macOS 대응 불가
+3. **확장성 한계**: 새로운 사용자 요청에 대한 유연성 부족
+4. **정보 수집 실패 연쇄**: 적절한 도구 부재 → 실행 실패 → ReAct 신뢰도 저하
+
+#### 문제 시나리오 예시
+```
+사용자: "Windows 서버 메모리 사용률 확인해줘"
+현재 시스템: Linux 'free -m' 명령어만 지원 → 실행 실패
+결과: 정보 수집 불가 → 빈 응답 생성
+```
+
+### 동적 명령어 시스템 아키텍처
+
+#### 🎯 설계 목표
+- **무한 확장성**: 사용자 요청에 맞춤형 명령어 생성
+- **멀티 OS 지원**: Windows, Linux, macOS 자동 감지 및 대응
+- **지능형 추천**: AI 기반 최적 명령어 조합 생성
+- **보안 우선**: 위험한 명령어 자동 필터링
+- **학습 능력**: 성공 패턴 축적 및 성능 향상
+
+#### 시스템 구성 요소
+
+##### 1. 동적 명령어 생성기 (Dynamic Command Generator)
+```typescript
+interface CommandGenerationRequest {
+  userRequest: string;           // 사용자 원본 요청
+  osInfo: {                     // 대상 OS 정보
+    type: 'windows' | 'linux' | 'macos';
+    version: string;
+    shell: 'cmd' | 'powershell' | 'bash' | 'zsh';
+  };
+  context: {                    // 컨텍스트 정보
+    previousCommands: Command[];  // 이전 실행 명령어들
+    availableTools: string[];     // 설치된 도구들
+    userPreferences: UserPrefs;   // 사용자 선호도
+  };
+}
+
+interface GeneratedCommand {
+  command: string;              // 실행할 명령어
+  purpose: string;              // 명령어 목적 설명
+  expectedOutput: string;       // 예상 출력 형태
+  riskLevel: 'safe' | 'low' | 'medium' | 'high';
+  timeout: number;              // 실행 타임아웃 (초)
+  prerequisites: string[];      // 선행 조건
+}
+```
+
+##### 2. OS별 명령어 맵핑 시스템
+```typescript
+const CommandMappings = {
+  systemInfo: {
+    windows: [
+      'systeminfo',
+      'wmic computersystem get model,name,manufacturer',
+      'wmic os get caption,version,buildnumber'
+    ],
+    linux: [
+      'uname -a',
+      'cat /etc/os-release',
+      'hostnamectl status'
+    ],
+    macos: [
+      'system_profiler SPHardwareDataType',
+      'sw_vers',
+      'uname -a'
+    ]
+  },
+  memoryUsage: {
+    windows: [
+      'wmic OS get TotalVisibleMemorySize,FreePhysicalMemory',
+      'systeminfo | findstr "Total Physical Memory"'
+    ],
+    linux: [
+      'free -h',
+      'cat /proc/meminfo',
+      'vmstat -s'
+    ],
+    macos: [
+      'vm_stat',
+      'top -l 1 -s 0 | grep PhysMem'
+    ]
+  }
+  // ... 더 많은 카테고리 확장 예정
+};
+```
+
+##### 3. 지능형 명령어 추천 엔진
+```typescript
+async function generateOptimalCommands(
+  request: CommandGenerationRequest
+): Promise<GeneratedCommand[]> {
+  const aiPrompt = `
+  사용자 요청: "${request.userRequest}"
+  대상 OS: ${request.osInfo.type} ${request.osInfo.version}
+  사용 가능한 셸: ${request.osInfo.shell}
+  
+  다음 조건을 만족하는 명령어들을 JSON 배열로 생성해주세요:
+  1. 안전하고 읽기 전용인 명령어만 포함
+  2. OS에 최적화된 네이티브 명령어 사용
+  3. 정보 수집 목적에 가장 적합한 명령어 선택
+  4. 실행 순서와 의존성 고려
+  5. 예상 실행 시간 5초 이내
+  
+  응답 형식: [{"command": "...", "purpose": "...", "riskLevel": "safe"}]
+  `;
+  
+  return await llmService.generateCommands(aiPrompt);
+}
+```
+
+##### 4. 보안 검증 및 필터링 시스템
+```typescript
+class CommandSecurityValidator {
+  private blacklistedCommands = [
+    'rm -rf', 'del /f', 'format', 'fdisk',
+    'shutdown', 'reboot', 'halt', 'poweroff',
+    'passwd', 'sudo', 'su', 'chmod 777',
+    'wget', 'curl', 'nc', 'netcat'
+  ];
+  
+  private dangerousPatterns = [
+    />\s*\/dev\/null/,     // 출력 리다이렉션
+    /\|\s*sh/,             // 파이프를 통한 실행
+    /&&|;|\|/,             // 명령어 체이닝
+    /\$\(/,                // 명령어 치환
+  ];
+  
+  async validateCommand(cmd: GeneratedCommand): Promise<ValidationResult> {
+    // 1. 블랙리스트 검사
+    if (this.isBlacklisted(cmd.command)) {
+      return { valid: false, reason: 'Blacklisted command detected' };
+    }
+    
+    // 2. 위험 패턴 검사
+    if (this.hasDangerousPattern(cmd.command)) {
+      return { valid: false, reason: 'Dangerous pattern detected' };
+    }
+    
+    // 3. AI 기반 위험도 평가
+    const riskAssessment = await this.assessRiskWithAI(cmd);
+    if (riskAssessment.score > 0.7) {
+      return { valid: false, reason: 'High risk score from AI assessment' };
+    }
+    
+    return { valid: true, reason: 'Command passed all security checks' };
+  }
+}
+```
+
+##### 5. 실행 및 결과 수집 시스템
+```typescript
+class DynamicCommandExecutor {
+  async executeCommandSequence(
+    commands: GeneratedCommand[],
+    sshConnection: SSHConnection
+  ): Promise<ExecutionResult[]> {
+    const results: ExecutionResult[] = [];
+    
+    for (const cmd of commands) {
+      try {
+        // 보안 검증
+        const validation = await this.validator.validateCommand(cmd);
+        if (!validation.valid) {
+          results.push({ 
+            command: cmd.command, 
+            success: false, 
+            error: validation.reason 
+          });
+          continue;
+        }
+        
+        // 명령어 실행
+        const startTime = Date.now();
+        const output = await sshConnection.exec(cmd.command, {
+          timeout: cmd.timeout * 1000
+        });
+        
+        const executionTime = Date.now() - startTime;
+        
+        // 결과 파싱 및 구조화
+        const parsedResult = await this.parseCommandOutput(
+          cmd, 
+          output, 
+          executionTime
+        );
+        
+        results.push(parsedResult);
+        
+        // 실행 성공 패턴 학습
+        await this.learningSystem.recordSuccess(cmd, parsedResult);
+        
+      } catch (error) {
+        results.push({
+          command: cmd.command,
+          success: false,
+          error: error.message,
+          executionTime: 0
+        });
+      }
+    }
+    
+    return results;
+  }
+}
+```
+
+#### 통합 워크플로우
+
+```mermaid
+graph TD
+    A[사용자 요청] --> B[OS 정보 감지]
+    B --> C[동적 명령어 생성]
+    C --> D[보안 검증]
+    D --> E{검증 통과?}
+    E -->|No| F[안전한 대안 명령어 생성]
+    E -->|Yes| G[명령어 실행]
+    F --> G
+    G --> H[결과 수집 및 파싱]
+    H --> I[구조화된 정보 반환]
+    I --> J[학습 데이터 저장]
+```
+
+### 구현 계획
+
+#### Phase 1: 기본 인프라 구축 (1주)
+- [ ] 동적 명령어 생성 서비스 구현
+- [ ] OS 감지 및 셸 타입 판별 로직
+- [ ] 기본 보안 검증 시스템 구축
+
+#### Phase 2: AI 통합 및 고도화 (1-2주)
+- [ ] LLM 기반 명령어 생성 엔진
+- [ ] 지능형 보안 위험도 평가
+- [ ] 실행 결과 파싱 및 구조화
+
+#### Phase 3: 학습 및 최적화 (1주)
+- [ ] 성공 패턴 학습 시스템
+- [ ] 사용자별 선호도 학습
+- [ ] 성능 모니터링 및 개선
+
+#### Phase 4: 기존 시스템 통합 (1주)
+- [ ] ReAct 엔진과 통합
+- [ ] 기존 정적 도구와 하이브리드 운영
+- [ ] 전체 시스템 테스트 및 최적화
+
+### 기대 효과
+
+#### 1. 완전한 유연성 확보
+- 어떤 OS든 자동 대응
+- 새로운 요청에 즉시 적응
+- 사용자 맞춤형 명령어 생성
+
+#### 2. 정보 수집 품질 대폭 향상
+- 요청별 최적화된 명령어 사용
+- ReAct 시스템 신뢰도 향상
+- 더 풍부하고 정확한 데이터 수집
+
+#### 3. 사용자 경험 혁신
+- "지원하지 않는 명령어" → "필요한 정보 수집 중"
+- 실시간 OS 적응 및 맞춤형 응답
+- 지속적 학습을 통한 성능 개선
+
+### 보안 고려사항
+
+#### 다층 보안 체계
+1. **명령어 블랙리스트**: 위험한 명령어 사전 차단
+2. **패턴 기반 필터링**: 위험한 문법 구조 탐지
+3. **AI 위험도 평가**: 맥락적 위험 요소 분석
+4. **실행 권한 제한**: 읽기 전용 명령어만 허용
+5. **감사 로깅**: 모든 명령어 실행 기록
+
+#### 장애 조치 메커니즘
+- 명령어 실행 타임아웃 설정
+- 실패 시 대안 명령어 자동 생성
+- 시스템 자원 사용량 모니터링
+- 비정상 패턴 감지 시 자동 중단
+
+이 동적 명령어 시스템을 통해 ITEasy AI Client는 진정한 범용 시스템 관리 도구로 진화할 수 있을 것입니다.

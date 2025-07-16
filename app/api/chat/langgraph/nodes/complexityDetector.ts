@@ -53,6 +53,29 @@ function detectComplexity(
 
   // System Engineering 질문에 대한 복잡도 분석
   if (intent === 'system_engineering') {
+    // SSH 연결 정보가 있는 단순한 정보 조회는 simple 처리
+    const hasSSHInfo = /ip:|host:|user:|username:|password:|port:/i.test(message)
+    const isInfoQuery = /알려줘|보여줘|확인|체크|상태|운영체제|호스트네임|업타임|메모리|디스크|버전/i.test(lowerMessage)
+    
+    if (hasSSHInfo && isInfoQuery) {
+      return {
+        level: 'simple',
+        reasoning: 'SSH connection with simple info query detected - using dynamic tool execution',
+        confidence: 0.9,
+        useReact: false
+      }
+    }
+    
+    // 새로운 사용자 요청이나 미지원 OS/명령어 감지 시 dynamic 모드 사용
+    const hasUnknownCommand = /윈도우|windows|맥|mac|새로운|unknown|unsupported/i.test(message)
+    if (hasSSHInfo && hasUnknownCommand) {
+      return {
+        level: 'dynamic',
+        reasoning: 'SSH connection with potential unknown OS or command - using dynamic command generation',
+        confidence: 0.8,
+        useReact: false
+      }
+    }
     const complexityIndicators = {
       // Multi-step indicators (가장 복잡)
       multiStep: [
@@ -78,10 +101,15 @@ function detectComplexity(
         'what is', 'define', 'explain', 'difference between',
         'command for', 'syntax', 'example', 'quick question',
         '이란 무엇', '설명해', '차이점', '명령어', '문법', '예제',
-        // Server status checks are generally simple operations
+        // Server status and info checks are generally simple operations
         '서버가 구동', '서버 구동', '서버 상태', '서버가 작동',
         'server running', 'server status', 'server up', 'server alive',
-        '확인', 'check', '체크', 'ping', '연결'
+        '확인', 'check', '체크', 'ping', '연결',
+        // OS and system info queries
+        '운영체제', 'os', 'operating system', '버전', 'version',
+        '호스트네임', 'hostname', '업타임', 'uptime', '메모리', 'memory',
+        '디스크', 'disk', 'cpu', '프로세스', 'process', '포트', 'port',
+        '알려줘', '보여줘', 'show me', 'tell me', 'what', '뭐야'
       ]
     }
 

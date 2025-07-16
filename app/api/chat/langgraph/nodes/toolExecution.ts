@@ -672,7 +672,8 @@ export async function toolExecutionNode(
     updatedSSHConnection = mergeSSHConnection(state.sshConnection, parsedSSHInfo)
   } else if (parsedSSHInfo.hasValidConnection) {
     console.log('🔗 [SSH_CONNECTION] New SSH connection detected:', parsedSSHInfo.host)
-    updatedSSHConnection = createSSHConnectionInfo(parsedSSHInfo)
+    const newConnection = createSSHConnectionInfo(parsedSSHInfo)
+    updatedSSHConnection = newConnection || undefined
   }
   
   // Select relevant tools based on user message and intent

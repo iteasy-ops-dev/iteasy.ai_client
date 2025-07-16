@@ -523,7 +523,7 @@ export const networkServiceAvailabilityTool: SystemTool = {
           const interval = (params.interval || 1) * 1000
           const count = params.count || 3
           
-          const results = []
+          const results: any[] = []
           
           // Perform multiple checks for each target
           for (let i = 0; i < count; i++) {
@@ -542,10 +542,15 @@ export const networkServiceAvailabilityTool: SystemTool = {
                     }
                     
                     // Simplified HTTP check for monitoring
+                    const controller = new AbortController()
+                    const timeoutId = setTimeout(() => controller.abort(), 10000)
+                    
                     const response = await fetch(url, {
                       method: 'HEAD',
-                      timeout: 10000
+                      signal: controller.signal
                     }).catch(e => ({ ok: false, status: 0, error: e.message }))
+                    
+                    clearTimeout(timeoutId)
                     
                     return {
                       target: url,
@@ -553,7 +558,7 @@ export const networkServiceAvailabilityTool: SystemTool = {
                       available: response.ok,
                       responseTime: Date.now() - checkStartTime,
                       statusCode: response.status || 0,
-                      error: !response.ok ? (response.error || `HTTP ${response.status}`) : null
+                      error: !response.ok ? ('error' in response ? response.error : `HTTP ${response.status}`) : null
                     }
                   } else if (target.type === 'tcp') {
                     // TCP port check

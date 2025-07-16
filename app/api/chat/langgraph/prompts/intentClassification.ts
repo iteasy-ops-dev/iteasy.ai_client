@@ -29,7 +29,6 @@ Analyze the user's message and classify it into one of these categories:
    - Available features and capabilities / 사용 가능한 기능
    - Usage instructions or tutorials / 사용 지침이나 튜토리얼
    - What this system can do / 이 시스템이 할 수 있는 것
-   - How to get better results / 더 나은 결과를 얻는 방법
    - Troubleshooting the interface / 인터페이스 문제 해결
    - AI agent functionality questions / AI 에이전트 기능 질문
 

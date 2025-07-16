@@ -314,7 +314,7 @@ export const readFileTool: SystemTool = {
           const content = await fs.readFile(filePath, { encoding: params.encoding || 'utf8' })
           
           // Limit lines if specified
-          const lines = content.split('\n')
+          const lines = content.toString().split('\n')
           const maxLines = params.maxLines || 100
           
           if (lines.length > maxLines) {
