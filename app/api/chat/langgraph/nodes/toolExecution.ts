@@ -1,9 +1,18 @@
 import { ChatState, NodeResponse, ExecutionContext, ToolResult, SystemTool } from '../types'
 import { systemToolsRegistry, getToolsByCategory } from '../tools/systemTools'
-import { parseSSHConnectionInfo, hasSSHConnectionInfo, getSSHConnectionSummary } from '../tools/sshConnectionParser'
+import { 
+  parseSSHConnectionInfo, 
+  hasSSHConnectionInfo, 
+  getSSHConnectionSummary,
+  createSSHConnectionInfo,
+  mergeSSHConnection,
+  shouldUseExistingConnection,
+  validateSSHConnectionCompleteness,
+  canEstablishSSHConnection
+} from '../tools/sshConnectionParser'
 
 // Tool selection based on user message analysis
-export function selectRelevantTools(userMessage: string, intent: string): SystemTool[] {
+export function selectRelevantTools(userMessage: string, intent: string, sshConnection?: import('../types').SSHConnectionInfo): SystemTool[] {
   const message = userMessage.toLowerCase()
   const selectedTools: SystemTool[] = []
   
@@ -19,11 +28,32 @@ export function selectRelevantTools(userMessage: string, intent: string): System
   const ipPattern = /\b(?:\d{1,3}\.){3}\d{1,3}\b/
   const hasIPAddress = ipPattern.test(message)
   
-  // SSH Remote Operations (HIGHEST PRIORITY when connection info available)
-  if (sshConnectionInfo.hasValidConnection && 
-      (message.includes('서버') || message.includes('server') || hasIPAddress)) {
+  // 사용 가능한 SSH 연결 정보 결정 (우선순위: 저장된 연결 > 파싱된 연결)
+  const availableSSHInfo = sshConnection || sshConnectionInfo
+  const sshValidation = validateSSHConnectionCompleteness(availableSSHInfo)
+  
+  // SSH Remote Operations (HIGHEST PRIORITY when complete connection info available)
+  // SSH 연결이 있으면 시스템 관련 질문들은 모두 SSH 도구로 처리
+  if (sshValidation.canConnect) {
+    const systemKeywords = [
+      '운영체제', 'os', '호스트네임', 'hostname', '시스템', 'system',
+      '서버', 'server', '메모리', 'memory', 'cpu', '프로세서',
+      '디스크', 'disk', '저장', 'storage', '네트워크', 'network',
+      '프로세스', 'process', '서비스', 'service', '로그', 'log',
+      '상태', 'status', '정보', 'info', '가동시간', 'uptime',
+      '사용량', 'usage', '성능', 'performance'
+    ]
     
-    console.log('🔧 [TOOL_SELECTION] SSH connection info available - prioritizing SSH tools')
+    const hasSystemKeyword = systemKeywords.some(keyword => 
+      message.includes(keyword.toLowerCase())
+    )
+    
+    // SSH 연결이 있고 시스템 키워드가 있거나, 서버/IP 언급이 있는 경우 SSH 도구 사용
+    if (hasSystemKeyword || message.includes('서버') || message.includes('server') || hasIPAddress) {
+    
+    console.log('🔧 [TOOL_SELECTION] Complete SSH connection info available - prioritizing SSH tools')
+    console.log(`🔗 [SSH_VALIDATION] Using ${sshConnection ? 'saved' : 'parsed'} connection: ${availableSSHInfo!.host}`)
+    console.log(`🔧 [TOOL_SELECTION] System keyword detected: ${hasSystemKeyword}`)
     
     // For detailed system information
     if (message.includes('시스템') || message.includes('system') || 
@@ -49,17 +79,28 @@ export function selectRelevantTools(userMessage: string, intent: string): System
       }
     }
     
-    // If no SSH tools selected but we have connection info, default to system info
-    if (selectedTools.length === 0) {
+    // If no SSH tools selected but we have connection info and system keyword, default to system info
+    if (selectedTools.length === 0 && hasSystemKeyword) {
       const sshTool = systemToolsRegistry.get('ssh_remote_system_info')
       if (sshTool) {
         selectedTools.push(sshTool)
-        console.log('🔧 [TOOL_SELECTION] Selected: ssh_remote_system_info (default with connection info)')
+        console.log('🔧 [TOOL_SELECTION] Selected: ssh_remote_system_info (default for system keyword with SSH connection)')
       }
     }
     
     // Early return to prevent fallback tools
     return selectedTools
+    }
+  }
+  
+  // SSH 관련 요청이지만 연결 정보가 불완전한 경우 경고
+  else if ((message.includes('서버') || message.includes('server') || hasIPAddress) && 
+           (sshConnectionInfo.hasValidConnection || sshConnection) && 
+           !sshValidation.canConnect) {
+    console.log('❌ [SSH_VALIDATION] SSH connection requested but incomplete connection info')
+    console.log(`❌ [SSH_VALIDATION] Missing fields: ${sshValidation.missingFields.join(', ')}`)
+    
+    // SSH 연결 정보가 불완전한 경우 SSH 도구를 선택하지 않고 fallback으로 이동
   }
   
   // Remote server status check (FALLBACK for basic connectivity when no SSH info)
@@ -251,7 +292,7 @@ export function selectRelevantTools(userMessage: string, intent: string): System
 }
 
 // Extract parameters from user message for specific tools
-export function extractToolParameters(userMessage: string, tool: SystemTool): Record<string, any> {
+export function extractToolParameters(userMessage: string, tool: SystemTool, sshConnection?: import('../types').SSHConnectionInfo): Record<string, any> {
   const message = userMessage.toLowerCase()
   const params: Record<string, any> = {}
   
@@ -449,52 +490,114 @@ export function extractToolParameters(userMessage: string, tool: SystemTool): Re
       break
       
     case 'ssh_remote_system_info':
-      // Use parsed SSH connection information
-      const sshInfo = parseSSHConnectionInfo(userMessage)
-      
-      if (sshInfo.hasValidConnection) {
-        params.host = sshInfo.host
-        params.username = sshInfo.username
-        params.password = sshInfo.password
-        params.keyFile = sshInfo.keyFile
-        params.port = sshInfo.port
+      // 우선순위: 저장된 SSH 연결 정보 > 현재 메시지에서 파싱된 정보 > 수동 추출
+      if (sshConnection && sshConnection.isActive) {
+        // 저장된 SSH 연결 정보 사용
+        params.host = sshConnection.host
+        params.username = sshConnection.username
+        params.password = sshConnection.password
+        params.keyFile = sshConnection.keyFile
+        params.port = sshConnection.port
         
-        console.log(`🔧 [PARAM_EXTRACTION] Using parsed SSH connection: ${sshInfo.username}@${sshInfo.host}:${sshInfo.port}`)
+        console.log(`🔧 [PARAM_EXTRACTION] Using saved SSH connection: ${sshConnection.username}@${sshConnection.host}:${sshConnection.port}`)
       } else {
-        // Fallback to manual extraction
-        const sshIpMatch = message.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/)
-        if (sshIpMatch) {
-          params.host = sshIpMatch[0]
-        }
+        // 현재 메시지에서 SSH 연결 정보 파싱
+        const sshInfo = parseSSHConnectionInfo(userMessage)
         
-        const usernameMatch = message.match(/(?:user|username|사용자|유저)\s*:?\s*([^\s]+)/)
-        if (usernameMatch) {
-          params.username = usernameMatch[1]
+        if (sshInfo.hasValidConnection) {
+          params.host = sshInfo.host
+          params.username = sshInfo.username
+          params.password = sshInfo.password
+          params.keyFile = sshInfo.keyFile
+          params.port = sshInfo.port
+          
+          console.log(`🔧 [PARAM_EXTRACTION] Using parsed SSH connection: ${sshInfo.username}@${sshInfo.host}:${sshInfo.port}`)
+        } else {
+          // Fallback to manual extraction
+          const sshIpMatch = message.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/)
+          if (sshIpMatch) {
+            params.host = sshIpMatch[0]
+          }
+          
+          const usernameMatch = message.match(/(?:user|username|사용자|유저)\s*:?\s*([^\s]+)/)
+          if (usernameMatch) {
+            params.username = usernameMatch[1]
+          }
+          
+          console.log('⚠️ [PARAM_EXTRACTION] No complete SSH info - using fallback extraction')
         }
-        
-        console.log('⚠️ [PARAM_EXTRACTION] No complete SSH info - using fallback extraction')
       }
       
-      // Determine command categories based on message content
-      const commandCategories = []
-      if (message.includes('시스템') || message.includes('system') || 
-          message.includes('업타임') || message.includes('uptime') ||
-          message.includes('가동시간') || message.includes('운영시간')) commandCategories.push('system_info')
-      if (message.includes('리소스') || message.includes('resource') || message.includes('메모리') || message.includes('memory') || message.includes('cpu') ||
-          message.includes('사용량') || message.includes('usage') || message.includes('사용률') || 
-          message.includes('디스크') || message.includes('disk') || message.includes('성능') || message.includes('performance')) commandCategories.push('resources')
-      if (message.includes('프로세스') || message.includes('process')) commandCategories.push('processes')
-      if (message.includes('서비스') || message.includes('service')) commandCategories.push('services')
-      if (message.includes('네트워크') || message.includes('network')) commandCategories.push('network')
-      if (message.includes('로그') || message.includes('log')) commandCategories.push('logs')
-      if (message.includes('디스크') || message.includes('disk') || message.includes('filesystem')) commandCategories.push('filesystem')
+      // 특정 질문에 대한 정확한 명령어 매핑 (간단한 질문용)
+      let specificCommands: string[] = []
       
-      // If no specific categories, default to system_info and resources
-      if (commandCategories.length === 0) {
-        commandCategories.push('system_info', 'resources')
+      // 호스트네임 질문
+      if (message.includes('호스트네임') || message.includes('hostname')) {
+        specificCommands = ['hostname']
+      }
+      // 운영체제 질문
+      else if (message.includes('운영체제') || message.includes('os') || message.includes('운영 체제')) {
+        specificCommands = ['uname -a', 'cat /etc/os-release']
+      }
+      // 메모리 질문
+      else if ((message.includes('메모리') || message.includes('memory')) && 
+               !message.includes('전체') && !message.includes('상세') && !message.includes('분석')) {
+        specificCommands = ['free -h']
+      }
+      // 디스크 질문
+      else if ((message.includes('디스크') || message.includes('disk') || message.includes('저장')) && 
+               !message.includes('전체') && !message.includes('상세') && !message.includes('분석')) {
+        specificCommands = ['df -h']
+      }
+      // CPU 질문
+      else if ((message.includes('cpu') || message.includes('프로세서')) && 
+               !message.includes('전체') && !message.includes('상세') && !message.includes('분석')) {
+        specificCommands = ['lscpu']
+      }
+      // 업타임 질문
+      else if (message.includes('업타임') || message.includes('uptime') || message.includes('가동시간')) {
+        specificCommands = ['uptime']
       }
       
-      params.commands = commandCategories
+      // 특정 명령어가 있으면 그것만 사용
+      if (specificCommands.length > 0) {
+        console.log(`🎯 [SPECIFIC_COMMAND] Using specific commands for simple question: ${specificCommands.join(', ')}`)
+        params.commands = specificCommands
+      } else {
+        // 복합적인 질문이나 전체 분석용 카테고리 기반 명령어
+        const commandCategories = []
+        
+        if (message.includes('시스템') || message.includes('system') || 
+            message.includes('업타임') || message.includes('uptime') ||
+            message.includes('가동시간') || message.includes('운영시간')) commandCategories.push('system_info')
+        if (message.includes('리소스') || message.includes('resource') || message.includes('메모리') || message.includes('memory') || message.includes('cpu') ||
+            message.includes('사용량') || message.includes('usage') || message.includes('사용률') || 
+            message.includes('디스크') || message.includes('disk') || message.includes('성능') || message.includes('performance')) commandCategories.push('resources')
+        if (message.includes('프로세스') || message.includes('process')) commandCategories.push('processes')
+        if (message.includes('서비스') || message.includes('service')) commandCategories.push('services')
+        if (message.includes('네트워크') || message.includes('network')) commandCategories.push('network')
+        if (message.includes('로그') || message.includes('log')) commandCategories.push('logs')
+        if (message.includes('파일시스템') || message.includes('filesystem')) commandCategories.push('filesystem')
+        
+        // 전체 분석 키워드 확인
+        const isComprehensiveAnalysis = message.includes('전체') || message.includes('모든') || 
+                                      message.includes('상세') || message.includes('분석') ||
+                                      message.includes('점검') || message.includes('상태확인') ||
+                                      message.includes('comprehensive') || message.includes('detailed')
+        
+        // 카테고리가 없고 전체 분석이 아니라면 기본 시스템 정보만
+        if (commandCategories.length === 0) {
+          if (isComprehensiveAnalysis) {
+            commandCategories.push('system_info', 'resources')
+            console.log(`🔍 [COMPREHENSIVE] Comprehensive analysis requested - using multiple categories`)
+          } else {
+            commandCategories.push('system_info')  // 기본값을 최소화
+            console.log(`🎯 [MINIMAL] Simple question - using minimal system_info only`)
+          }
+        }
+        
+        params.commands = commandCategories
+      }
       break
       
     case 'ssh_remote_command':
@@ -557,8 +660,23 @@ export async function toolExecutionNode(
 ): Promise<NodeResponse> {
   console.log('🔧 [TOOL_EXECUTION] === Tool Execution Node ===')
   
+  // SSH 연결 정보 관리
+  let updatedSSHConnection = state.sshConnection
+  
+  // 현재 메시지에서 SSH 연결 정보 파싱
+  const parsedSSHInfo = parseSSHConnectionInfo(state.lastUserMessage)
+  
+  // 기존 연결 정보 재사용 여부 확인
+  if (shouldUseExistingConnection(state.sshConnection, state.lastUserMessage)) {
+    console.log('🔗 [SSH_CONNECTION] Using existing SSH connection:', state.sshConnection?.host)
+    updatedSSHConnection = mergeSSHConnection(state.sshConnection, parsedSSHInfo)
+  } else if (parsedSSHInfo.hasValidConnection) {
+    console.log('🔗 [SSH_CONNECTION] New SSH connection detected:', parsedSSHInfo.host)
+    updatedSSHConnection = createSSHConnectionInfo(parsedSSHInfo)
+  }
+  
   // Select relevant tools based on user message and intent
-  const selectedTools = selectRelevantTools(state.lastUserMessage, state.intent || 'general')
+  const selectedTools = selectRelevantTools(state.lastUserMessage, state.intent || 'general', updatedSSHConnection || undefined)
   
   if (selectedTools.length === 0) {
     console.log('🔧 [TOOL_EXECUTION] No tools selected for execution')
@@ -588,7 +706,7 @@ export async function toolExecutionNode(
       console.log(`🔧 [TOOL_EXECUTION] Executing tool: ${tool.id}`)
       
       // Extract parameters for this specific tool
-      const params = extractToolParameters(state.lastUserMessage, tool)
+      const params = extractToolParameters(state.lastUserMessage, tool, updatedSSHConnection || undefined)
       
       // Validate parameters (basic validation)
       if (tool.validate) {
@@ -636,6 +754,7 @@ export async function toolExecutionNode(
     toolExecutionResults: toolResults,
     selectedTools: toolIds,
     executionContext,
-    availableTools: selectedTools
+    availableTools: selectedTools,
+    sshConnection: updatedSSHConnection  // SSH 연결 정보 상태 업데이트
   }
 }

@@ -3,7 +3,7 @@ import { BaseMessage } from '@langchain/core/messages'
 export interface ChatState {
   messages: BaseMessage[]
   lastUserMessage: string
-  intent: 'general' | 'system_engineering' | 'help' | null
+  intent: 'general' | 'system_engineering' | 'agentUsageGuide' | null
   confidence: number
   systemPrompt?: string
   response?: string
@@ -25,10 +25,24 @@ export interface ChatState {
   selectedTools?: string[]
   toolExecutionResults?: ToolResult[]
   requiresToolExecution?: boolean
+  
+  // SSH Connection State
+  sshConnection?: SSHConnectionInfo
+}
+
+export interface SSHConnectionInfo {
+  host: string
+  port: number
+  username: string
+  password?: string
+  keyFile?: string
+  isActive: boolean
+  lastUsed: Date
+  alias?: string  // 사용자가 지정한 서버 별칭
 }
 
 export interface IntentClassificationResult {
-  intent: 'general' | 'system_engineering' | 'help'
+  intent: 'general' | 'system_engineering' | 'agentUsageGuide'
   confidence: number
   reasoning?: string
 }

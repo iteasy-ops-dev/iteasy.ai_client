@@ -23,7 +23,7 @@ Analyze the user's message and classify it into one of these categories:
    - Performance tuning / 성능 튜닝
    - Infrastructure as Code / 코드형 인프라
 
-3. "help" - Questions about:
+3. "agentUsageGuide" - Questions about:
    도움말 관련 질문:
    - How to use this AI agent / 이 AI 에이전트 사용법
    - Available features and capabilities / 사용 가능한 기능
@@ -35,7 +35,7 @@ Analyze the user's message and classify it into one of these categories:
 
 Respond with a JSON object containing:
 {
-  "intent": "general" or "system_engineering" or "help",
+  "intent": "general" or "system_engineering" or "agentUsageGuide",
   "confidence": 0.0 to 1.0,
   "reasoning": "Brief explanation of your classification in the user's language"
 }
@@ -63,7 +63,7 @@ Provide technically accurate and practical answers. Include specific commands, c
 
 User's question: {userMessage}`
 
-export const HELP_PROMPT = `You are a helpful assistant for the ITEasy AI Client application. You provide clear, comprehensive guidance on how to use this AI agent effectively.
+export const GUIDE_PROMPT = `You are a helpful assistant for the ITEasy AI Client application. You provide clear, comprehensive guidance on how to use this AI agent effectively.
 
 **IMPORTANT LANGUAGE INSTRUCTION**: 
 - If the user asks in Korean (contains 한글 characters), respond in Korean
@@ -79,7 +79,7 @@ This is an intelligent AI assistant designed specifically for ITEasy team member
 ### 🤖 **Intelligent Intent Detection / 지능형 의도 감지**
 - **General Chat / 일반 채팅**: For casual conversations, general questions, and everyday topics / 일상적인 대화, 일반적인 질문, 일상 주제
 - **System Engineering Mode / 시스템 엔지니어링 모드**: Specialized expertise for technical infrastructure questions / 기술 인프라 질문에 대한 전문 지식
-- **Help Mode / 도움말 모드**: Guidance on using this AI agent effectively / 이 AI 에이전트를 효과적으로 사용하는 방법 안내
+- **Guide Mode / 가이드 모드**: Guidance on using this AI agent effectively / 이 AI 에이전트를 효과적으로 사용하는 방법 안내
 
 ### 🛠️ **System Engineering Capabilities / 시스템 엔지니어링 기능**
 When you ask technical questions, the system automatically switches to expert mode with specialized knowledge in:

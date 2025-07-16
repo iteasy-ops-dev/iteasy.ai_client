@@ -174,6 +174,19 @@ export const sshRemoteSystemInfoTool: SystemTool = {
         try {
           console.log(`🔧 [SSH_REMOTE] Connecting to ${params.host} for system information`)
           
+          // 필수 SSH 연결 정보 검증
+          if (!params.host || params.host.trim() === '') {
+            throw new Error('SSH host is required')
+          }
+          
+          if (!params.username || params.username.trim() === '') {
+            throw new Error('SSH username is required')
+          }
+          
+          if (!params.password && !params.keyFile) {
+            throw new Error('SSH authentication required: password or keyFile must be provided')
+          }
+          
           // Validate host format
           if (!/^[a-zA-Z0-9.-]+$/.test(params.host)) {
             throw new Error('Invalid host format')
@@ -188,10 +201,22 @@ export const sshRemoteSystemInfoTool: SystemTool = {
           let commandsToRun: string[] = []
           
           if (params.commands && Array.isArray(params.commands)) {
-            // Map command categories to actual commands
-            for (const cmdCategory of params.commands) {
-              if (SAFE_REMOTE_COMMANDS[cmdCategory as keyof typeof SAFE_REMOTE_COMMANDS]) {
-                commandsToRun.push(...SAFE_REMOTE_COMMANDS[cmdCategory as keyof typeof SAFE_REMOTE_COMMANDS])
+            // Handle both command categories and direct commands
+            for (const cmd of params.commands) {
+              // Check if it's a category name
+              if (SAFE_REMOTE_COMMANDS[cmd as keyof typeof SAFE_REMOTE_COMMANDS]) {
+                console.log(`🔧 [SSH_REMOTE] Using category: ${cmd}`)
+                commandsToRun.push(...SAFE_REMOTE_COMMANDS[cmd as keyof typeof SAFE_REMOTE_COMMANDS])
+              } 
+              // Check if it's a direct command from safe command lists
+              else {
+                const allSafeCommands = Object.values(SAFE_REMOTE_COMMANDS).flat()
+                if (allSafeCommands.includes(cmd)) {
+                  console.log(`🎯 [SSH_REMOTE] Using specific command: ${cmd}`)
+                  commandsToRun.push(cmd)
+                } else {
+                  console.log(`⚠️ [SSH_REMOTE] Unsafe command rejected: ${cmd}`)
+                }
               }
             }
           } else {
@@ -209,10 +234,38 @@ export const sshRemoteSystemInfoTool: SystemTool = {
             commandsToRun = ['uname -a', 'uptime', 'free -h']
           }
           
-          // Limit number of commands to prevent abuse
-          commandsToRun = commandsToRun.slice(0, 5)
+          // Intelligent command limiting based on context
+          const MAX_COMMANDS = {
+            specific_commands: 5,    // 특정 명령어 직접 실행
+            single_category: 8,      // 단일 카테고리 요청
+            multiple_categories: 15, // 여러 카테고리 요청  
+            emergency_max: 25        // 절대 최대값
+          }
           
-          console.log(`🔧 [SSH_REMOTE] Will execute ${commandsToRun.length} commands`)
+          const categoryCount = params.commands ? params.commands.length : 1
+          const hasDirectCommands = params.commands && params.commands.some((cmd: string) => 
+            !SAFE_REMOTE_COMMANDS[cmd as keyof typeof SAFE_REMOTE_COMMANDS]
+          )
+          
+          let maxCommands
+          if (hasDirectCommands && commandsToRun.length <= 3) {
+            // 특정 명령어 직접 실행이고 개수가 적으면 제한 없음
+            maxCommands = MAX_COMMANDS.specific_commands
+            console.log(`🎯 [SSH_REMOTE] Specific command execution - no limiting needed`)
+          } else {
+            maxCommands = categoryCount === 1 
+              ? MAX_COMMANDS.single_category 
+              : categoryCount <= 3
+                ? MAX_COMMANDS.multiple_categories
+                : MAX_COMMANDS.emergency_max
+          }
+              
+          if (commandsToRun.length > maxCommands) {
+            console.log(`🔧 [SSH_REMOTE] Limiting commands from ${commandsToRun.length} to ${maxCommands} (${categoryCount} categories requested)`)
+            commandsToRun = commandsToRun.slice(0, maxCommands)
+          }
+          
+          console.log(`🔧 [SSH_REMOTE] Will execute ${commandsToRun.length} commands: ${commandsToRun.join(', ')}`)
           
           // Determine authentication method
           const keyFile = params.keyFile

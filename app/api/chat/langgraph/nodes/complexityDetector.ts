@@ -37,12 +37,12 @@ export async function complexityDetectorNode(
  */
 function detectComplexity(
   message: string, 
-  intent: 'general' | 'system_engineering' | 'help' | null
+  intent: 'general' | 'system_engineering' | 'agentUsageGuide' | null
 ): ComplexityDetectionResult {
   const lowerMessage = message.toLowerCase()
   
-  // 일반 대화나 도움말은 항상 simple
-  if (intent === 'general' || intent === 'help') {
+  // 일반 대화나 가이드는 항상 simple
+  if (intent === 'general' || intent === 'agentUsageGuide') {
     return {
       level: 'simple',
       reasoning: `${intent} intent detected - using direct response`,

@@ -71,6 +71,10 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
       requiresToolExecution: {
         value: (x?: any, y?: any) => y ?? x ?? false,
       },
+      // SSH Connection State
+      sshConnection: {
+        value: (x?: any, y?: any) => y ?? x,
+      },
     },
   })
 
@@ -100,7 +104,7 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
       console.log(`Complexity: ${state.complexityLevel} (useReact: ${state.useReact})`)
       
       // Route based on intent and complexity
-      if (state.intent === 'help' && state.confidence >= 0.7) {
+      if (state.intent === 'agentUsageGuide' && state.confidence >= 0.7) {
         console.log('→ Routing to: agentUsageGuide')
         return 'agentUsageGuide'
       } else if (state.intent === 'system_engineering' && state.confidence >= 0.7) {
@@ -128,6 +132,36 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
   return workflow.compile()
 }
 
+// Helper function to extract SSH connection info from message history
+function extractSSHConnectionFromHistory(messages: any[]): import('./types').SSHConnectionInfo | undefined {
+  // 역순으로 메시지를 확인하여 가장 최근의 SSH 연결 정보 찾기
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+    if (message.role === 'user' && message.content) {
+      // SSH 연결 정보 파싱 시도
+      const { parseSSHConnectionInfo, createSSHConnectionInfo } = require('./tools/sshConnectionParser')
+      const sshInfo = parseSSHConnectionInfo(message.content)
+      
+      if (sshInfo.hasValidConnection) {
+        const connectionInfo = createSSHConnectionInfo(sshInfo)
+        if (connectionInfo) {
+          // 연결이 최근(1시간 이내)인지 확인
+          const timeDiff = Date.now() - connectionInfo.lastUsed.getTime()
+          const oneHour = 60 * 60 * 1000
+          
+          if (timeDiff < oneHour) {
+            console.log(`🔗 [SSH_RESTORE] Restored SSH connection from message history: ${connectionInfo.host}`)
+            return connectionInfo
+          }
+        }
+      }
+    }
+  }
+  
+  console.log(`🔗 [SSH_RESTORE] No valid SSH connection found in message history`)
+  return undefined
+}
+
 // Helper function to process a message through the graph
 export async function processWithGraph(
   messages: any[],
@@ -147,18 +181,23 @@ export async function processWithGraph(
     return new HumanMessage(msg.content)
   })
   
-  // Run the graph
+  // 메시지 히스토리에서 SSH 연결 정보 복원
+  const restoredSSHConnection = extractSSHConnectionFromHistory(messages)
+  
+  // Run the graph with restored SSH connection
   const result = await graph.invoke({
     messages: baseMessages,
     lastUserMessage,
     intent: null,
     confidence: 0,
+    sshConnection: restoredSSHConnection,  // SSH 연결 정보 전달!
   })
   
   console.log('Graph execution result:', {
     intent: result.intent,
     confidence: result.confidence,
     hasSystemPrompt: !!result.systemPrompt,
+    hasSSHConnection: !!result.sshConnection,
   })
   
   return result

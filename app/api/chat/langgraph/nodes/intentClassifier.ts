@@ -4,14 +4,18 @@ import { ChatState, IntentClassificationResult, NodeResponse } from '../types'
 import { INTENT_CLASSIFICATION_PROMPT } from '../prompts/intentClassification'
 
 // Enhanced local keyword-based intent classification with improved scoring
-function classifyIntentLocally(message: string): { intent: string; confidence: number; language: 'ko' | 'en' } {
+function classifyIntentLocally(message: string, sshConnection?: import('../types').SSHConnectionInfo): { intent: string; confidence: number; language: 'ko' | 'en' } {
   const lowerMessage = message.toLowerCase()
   const isKorean = /[가-힣]/.test(message)
   const language = isKorean ? 'ko' : 'en'
   
-  // Help-related patterns and keywords (Korean + English) - Enhanced
-  const helpPatterns = [
-    // Direct help requests (weighted higher)
+  // SSH 컨텍스트 확인
+  const hasActiveSSHConnection = sshConnection && sshConnection.isActive
+  console.log(`🔗 [SSH_CONTEXT] Active SSH connection: ${hasActiveSSHConnection ? sshConnection.host : 'none'}`)
+  
+  // Guide-related patterns and keywords (Korean + English) - Enhanced  
+  const guidePatterns = [
+    // Direct guide requests (weighted higher)
     { pattern: /어떻게\s*(사용|쓰|하|써)/g, weight: 2.0 },
     { pattern: /사용법|사용방법|이용방법/g, weight: 2.0 },
     { pattern: /도움말|헬프|help|guide/g, weight: 2.0 },
@@ -67,14 +71,14 @@ function classifyIntentLocally(message: string): { intent: string; confidence: n
     { pattern: /troubleshoot|문제.*진단/g, weight: 1.8 }
   ]
   
-  let helpScore = 0
+  let guideScore = 0
   let systemScore = 0
   let technicalScore = 0
   
-  // Calculate help intent score with weighted patterns
-  helpPatterns.forEach(({ pattern, weight }) => {
+  // Calculate guide intent score with weighted patterns
+  guidePatterns.forEach(({ pattern, weight }) => {
     const matches = (lowerMessage.match(pattern) || []).length
-    helpScore += matches * weight
+    guideScore += matches * weight
   })
   
   // Calculate system engineering score with weighted patterns
@@ -94,11 +98,37 @@ function classifyIntentLocally(message: string): { intent: string; confidence: n
     systemScore += 3.0 // Very strong indicator
   }
   
+  // SSH 컨텍스트 기반 가중치 (매우 중요!)
+  if (hasActiveSSHConnection) {
+    console.log(`🔗 [SSH_CONTEXT] Active SSH connection detected - boosting system engineering intent`)
+    
+    // SSH 연결이 활성화된 상태에서 시스템 관련 질문은 강하게 system_engineering으로 분류
+    const systemKeywords = [
+      '운영체제', '호스트네임', 'hostname', '서버', 'server', '시스템', 'system', 
+      '메모리', 'memory', 'cpu', '디스크', 'disk', '프로세스', 'process',
+      '네트워크', 'network', '포트', 'port', '로그', 'log', '상태', 'status',
+      '업타임', 'uptime', '가동시간', 'os', '리눅스', 'linux', '우분투', 'ubuntu'
+    ]
+    
+    const hasSystemKeyword = systemKeywords.some(keyword => 
+      lowerMessage.includes(keyword.toLowerCase())
+    )
+    
+    if (hasSystemKeyword) {
+      systemScore += 4.0 // SSH 컨텍스트에서 시스템 키워드 = 강력한 system_engineering 신호
+      console.log(`🔗 [SSH_CONTEXT] System keyword found in SSH context - strong system_engineering signal`)
+    } else {
+      // SSH 컨텍스트에서 일반 질문도 시스템 관련일 가능성이 높음
+      systemScore += 2.0
+      console.log(`🔗 [SSH_CONTEXT] Question in SSH context - likely system_engineering`)
+    }
+  }
+  
   // Question mark analysis
   if (message.includes('?') || message.includes('？')) {
     if (systemScore > 1.0) systemScore += 0.8
-    else if (helpScore > 0) helpScore += 1.0
-    else helpScore += 0.8 // Default to help for questions
+    else if (guideScore > 0) guideScore += 1.0
+    else guideScore += 0.8 // Default to guide for questions
   }
   
   // Enhanced Korean technical terms
@@ -111,22 +141,22 @@ function classifyIntentLocally(message: string): { intent: string; confidence: n
   // Language-specific boosting
   if (language === 'ko') {
     // Korean users tend to ask more direct questions
-    if (helpScore > 0) helpScore *= 1.1
+    if (guideScore > 0) guideScore *= 1.1
     if (systemScore > 0) systemScore *= 1.1
   }
   
   // Determine intent based on enhanced scoring
-  console.log(`🔍 [INTENT_SCORING] Help: ${helpScore.toFixed(2)}, System: ${systemScore.toFixed(2)}, Technical: ${technicalScore.toFixed(2)}, Language: ${language}`)
+  console.log(`🔍 [INTENT_SCORING] Guide: ${guideScore.toFixed(2)}, System: ${systemScore.toFixed(2)}, Technical: ${technicalScore.toFixed(2)}, Language: ${language}`)
   
   // Enhanced confidence calculation
-  const totalScore = helpScore + systemScore + technicalScore
+  const totalScore = guideScore + systemScore + technicalScore
   
-  if (helpScore > systemScore && helpScore > technicalScore && helpScore > 1.0) {
-    const confidence = Math.min(0.75 + (helpScore / totalScore * 0.2), 0.92)
-    return { intent: 'help', confidence, language }
+  if (guideScore > systemScore && guideScore > technicalScore && guideScore > 1.0) {
+    const confidence = Math.min(0.75 + (guideScore / totalScore * 0.2), 0.92)
+    return { intent: 'agentUsageGuide', confidence, language }
   }
   
-  if (systemScore > helpScore && systemScore > 0.8) {
+  if (systemScore > guideScore && systemScore > 0.8) {
     const confidence = Math.min(0.75 + (systemScore / totalScore * 0.25), 0.95)
     return { intent: 'system_engineering', confidence, language }
   }
@@ -141,9 +171,9 @@ function classifyIntentLocally(message: string): { intent: string; confidence: n
     return { intent: 'general', confidence: 0.4, language }
   }
   
-  // When uncertain, lean towards help for questions
+  // When uncertain, lean towards guide for questions
   if (message.includes('?') || message.includes('？')) {
-    return { intent: 'help', confidence: 0.6, language }
+    return { intent: 'agentUsageGuide', confidence: 0.6, language }
   }
   
   return { intent: 'general', confidence: 0.5, language }
@@ -161,11 +191,11 @@ export async function intentClassifierNode(
   
   if (shouldUseLocal) {
     console.log('Using local keyword-based classification')
-    const result = classifyIntentLocally(state.lastUserMessage)
+    const result = classifyIntentLocally(state.lastUserMessage, state.sshConnection)
     console.log('Local intent classification result:', result)
     
     return {
-      intent: result.intent as 'general' | 'system_engineering' | 'help',
+      intent: result.intent as 'general' | 'system_engineering' | 'agentUsageGuide',
       confidence: result.confidence,
       detectedLanguage: result.language,
     }
@@ -180,10 +210,15 @@ export async function intentClassifierNode(
   })
 
   try {
+    // SSH 컨텍스트 정보 추가
+    const sshContext = state.sshConnection && state.sshConnection.isActive 
+      ? `\n\nIMPORTANT: Active SSH connection context detected to server ${state.sshConnection.host}. Questions about system information, hostname, OS, memory, CPU, etc. should be classified as 'system_engineering' even if they seem general.`
+      : ''
+    
     const prompt = INTENT_CLASSIFICATION_PROMPT.replace(
       '{userMessage}',
       state.lastUserMessage
-    )
+    ) + sshContext
 
     const response = await llm.invoke([
       new SystemMessage('You are an intent classifier.'),
@@ -207,19 +242,19 @@ export async function intentClassifierNode(
     const detectedLanguage = isKorean ? 'ko' : 'en'
 
     return {
-      intent: result.intent as 'general' | 'system_engineering' | 'help',
+      intent: result.intent as 'general' | 'system_engineering' | 'agentUsageGuide',
       confidence: result.confidence,
       detectedLanguage: detectedLanguage as 'ko' | 'en',
     }
   } catch (error) {
     console.error('Intent classification error:', error)
-    // Fallback to local classification
+    // Fallback to local classification with SSH context
     console.log('Falling back to local classification due to error')
-    const result = classifyIntentLocally(state.lastUserMessage)
+    const result = classifyIntentLocally(state.lastUserMessage, state.sshConnection)
     console.log('Fallback local classification result:', result)
     
     return {
-      intent: result.intent as 'general' | 'system_engineering' | 'help',
+      intent: result.intent as 'general' | 'system_engineering' | 'agentUsageGuide',
       confidence: result.confidence,
       detectedLanguage: result.language,
     }

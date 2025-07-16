@@ -1,7 +1,7 @@
 // SSH Connection Information Parser
 // Extracts SSH connection details from user messages
 
-export interface SSHConnectionInfo {
+export interface SSHConnectionResult {
   host?: string
   port?: number
   username?: string
@@ -12,16 +12,18 @@ export interface SSHConnectionInfo {
   confidence: number
 }
 
+import { SSHConnectionInfo } from '../types'
+
 /**
  * Parses various SSH connection formats from user messages
  */
-export function parseSSHConnectionInfo(message: string): SSHConnectionInfo {
+export function parseSSHConnectionInfo(message: string): SSHConnectionResult {
   const lowerMessage = message.toLowerCase()
   
   console.log('🔍 [SSH_PARSER] Parsing SSH connection info from:', message.substring(0, 100))
   
   // Initialize result
-  const result: SSHConnectionInfo = {
+  const result: SSHConnectionResult = {
     hasValidConnection: false,
     source: 'none',
     confidence: 0
@@ -189,6 +191,117 @@ export function parseSSHConnectionInfo(message: string): SSHConnectionInfo {
   return result
 }
 
+// SSH 연결 정보 저장 및 재사용을 위한 헬퍼 함수들
+export function createSSHConnectionInfo(
+  result: SSHConnectionResult,
+  alias?: string
+): SSHConnectionInfo | null {
+  if (!result.hasValidConnection || !result.host) {
+    return null
+  }
+  
+  return {
+    host: result.host,
+    port: result.port || 22,
+    username: result.username || 'root',
+    password: result.password,
+    keyFile: result.keyFile,
+    isActive: true,
+    lastUsed: new Date(),
+    alias: alias
+  }
+}
+
+export function mergeSSHConnection(
+  existing: SSHConnectionInfo | undefined,
+  newConnection: SSHConnectionResult
+): SSHConnectionInfo | undefined {
+  // 새로운 연결 정보가 있으면 업데이트
+  if (newConnection.hasValidConnection && newConnection.host) {
+    return createSSHConnectionInfo(newConnection) || existing
+  }
+  
+  // 기존 연결 정보가 있으면 lastUsed만 업데이트
+  if (existing) {
+    return {
+      ...existing,
+      lastUsed: new Date()
+    }
+  }
+  
+  return undefined
+}
+
+export function shouldUseExistingConnection(
+  existing: SSHConnectionInfo | undefined,
+  message: string
+): boolean {
+  if (!existing || !existing.isActive) {
+    return false
+  }
+  
+  // 새로운 서버 정보가 메시지에 없고 기존 연결이 최근(1시간 이내)에 사용되었다면 재사용
+  const newConnection = parseSSHConnectionInfo(message)
+  const timeDiff = Date.now() - existing.lastUsed.getTime()
+  const oneHour = 60 * 60 * 1000
+  
+  return !newConnection.hasValidConnection && timeDiff < oneHour
+}
+
+// SSH 연결 정보 완전성 검증
+export function validateSSHConnectionCompleteness(
+  sshInfo: SSHConnectionInfo | SSHConnectionResult | undefined
+): { isComplete: boolean; missingFields: string[]; canConnect: boolean } {
+  const missingFields: string[] = []
+  
+  if (!sshInfo) {
+    return {
+      isComplete: false,
+      missingFields: ['모든 SSH 연결 정보'],
+      canConnect: false
+    }
+  }
+  
+  // 필수 필드 검증
+  if (!sshInfo.host || sshInfo.host.trim() === '') {
+    missingFields.push('host (서버 주소)')
+  }
+  
+  if (!sshInfo.username || sshInfo.username.trim() === '') {
+    missingFields.push('username (사용자명)')
+  }
+  
+  // 인증 방법 중 하나는 반드시 있어야 함
+  const hasPassword = sshInfo.password && sshInfo.password.trim() !== ''
+  const hasKeyFile = sshInfo.keyFile && sshInfo.keyFile.trim() !== ''
+  
+  if (!hasPassword && !hasKeyFile) {
+    missingFields.push('password 또는 keyFile (인증 정보)')
+  }
+  
+  const isComplete = missingFields.length === 0
+  const canConnect = isComplete && (
+    // SSHConnectionInfo의 경우
+    ('isActive' in sshInfo ? sshInfo.isActive : true) &&
+    // SSHConnectionResult의 경우  
+    ('hasValidConnection' in sshInfo ? sshInfo.hasValidConnection : true)
+  )
+  
+  return {
+    isComplete,
+    missingFields,
+    canConnect
+  }
+}
+
+// SSH 연결 가능 여부 체크 (간단한 버전)
+export function canEstablishSSHConnection(
+  sshInfo: SSHConnectionInfo | SSHConnectionResult | undefined
+): boolean {
+  const validation = validateSSHConnectionCompleteness(sshInfo)
+  return validation.canConnect
+}
+
 /**
  * Validates if SSH connection info is sufficient for connection
  */
@@ -244,7 +357,7 @@ export function hasSSHConnectionInfo(message: string): boolean {
 /**
  * Generates SSH connection summary for logging
  */
-export function getSSHConnectionSummary(info: SSHConnectionInfo): string {
+export function getSSHConnectionSummary(info: SSHConnectionResult): string {
   if (!info.hasValidConnection) {
     return 'No valid SSH connection info found'
   }
