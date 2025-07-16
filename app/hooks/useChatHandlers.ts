@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useChatStore } from '@/app/store/chat-store'
 import { useSettingsStore } from '@/app/store/settings-store'
 import { useStreamingChat } from './useStreamingChat'
-import type { Message } from '@/app/types'
+import type { Message, LangGraphMetadata } from '@/app/types'
 
 export function useChatHandlers() {
+
   const {
     currentChatId,
     createNewChat,
@@ -16,6 +17,7 @@ export function useChatHandlers() {
     getCurrentChat,
     updateLastMessage,
     updateMessageWithTokenUsage,
+    updateMessageWithLangGraphMetadata,
     updateChatTitle,
   } = useChatStore()
 
@@ -78,6 +80,14 @@ export function useChatHandlers() {
         fullContent += chunk
         if (currentChatId) {
           updateLastMessage(currentChatId, fullContent)
+        }
+      },
+      onLangGraphUpdate: (metadata: LangGraphMetadata) => {
+        console.log('🧠 Received LangGraph metadata in chat handlers:', metadata)
+        
+        // 메시지에 LangGraph 메타데이터 저장
+        if (currentChatId && assistantMessageId) {
+          updateMessageWithLangGraphMetadata(currentChatId, assistantMessageId, metadata)
         }
       },
       onFinish: (usage?: any) => {

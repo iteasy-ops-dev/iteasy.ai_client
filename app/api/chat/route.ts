@@ -78,6 +78,22 @@ async function handleCustomLLMStreaming(config: {
         }
 
         try {
+          // First, send LangGraph metadata
+          const langGraphMetadata = {
+            intent: graphResult.intent,
+            confidence: graphResult.confidence,
+            complexityLevel: graphResult.complexityLevel,
+            useReact: graphResult.useReact,
+            reasoningChain: graphResult.reasoningChain || [],
+            currentStep: graphResult.currentStep || 0,
+            toolsUsed: graphResult.toolsUsed || []
+          }
+          
+          controller.enqueue(new TextEncoder().encode(`2:${JSON.stringify({
+            type: 'langGraph',
+            data: langGraphMetadata
+          })}\n`))
+
           while (true) {
             const { done, value } = await reader.read()
             if (done) break
@@ -120,13 +136,26 @@ async function handleCustomLLMStreaming(config: {
           controller.enqueue(new TextEncoder().encode(`e:${JSON.stringify({
             finishReason: 'stop',
             usage: estimatedUsage,
-            isContinued: false
+            isContinued: false,
+            // LangGraph 메타데이터 추가
+            langGraph: {
+              intent: graphResult.intent,
+              confidence: graphResult.confidence,
+              complexityLevel: graphResult.complexityLevel,
+              useReact: graphResult.useReact,
+              reasoningChain: graphResult.reasoningChain || [],
+              currentStep: graphResult.currentStep || 0,
+              toolsUsed: graphResult.toolsUsed || []
+            }
           })}\n`))
 
           console.log('=== Custom LLM Response Debug Info ===')
           console.log('Model used:', model)
           console.log('Intent:', graphResult.intent)
           console.log('Confidence:', graphResult.confidence)
+          console.log('Complexity Level:', graphResult.complexityLevel)
+          console.log('Use ReAct:', graphResult.useReact)
+          console.log('ReAct Steps:', graphResult.reasoningChain?.length || 0)
           console.log('Used system prompt:', !!graphResult.systemPrompt)
           console.log('Estimated prompt tokens:', estimatedUsage.promptTokens)
           console.log('Estimated completion tokens:', estimatedUsage.completionTokens)
@@ -239,6 +268,9 @@ export async function POST(req: Request) {
           console.log('Model used:', model)
           console.log('Intent:', graphResult.intent)
           console.log('Confidence:', graphResult.confidence)
+          console.log('Complexity Level:', graphResult.complexityLevel)
+          console.log('Use ReAct:', graphResult.useReact)
+          console.log('ReAct Steps:', graphResult.reasoningChain?.length || 0)
           console.log('Used system prompt:', !!graphResult.systemPrompt)
           console.log('Prompt tokens:', event.usage?.promptTokens || 'N/A')
           console.log('Completion tokens:', event.usage?.completionTokens || 'N/A')
@@ -248,8 +280,57 @@ export async function POST(req: Request) {
         },
       })
 
-      return result.toDataStreamResponse({
+      // Custom wrapper to inject LangGraph metadata
+      const originalResponse = result.toDataStreamResponse({
         sendUsage: true,
+      })
+
+      // Create new response that includes LangGraph metadata
+      const transformedStream = new ReadableStream({
+        async start(controller) {
+          const reader = originalResponse.body?.getReader()
+          const decoder = new TextDecoder()
+          const encoder = new TextEncoder()
+          
+          if (!reader) {
+            controller.close()
+            return
+          }
+
+          try {
+            // First, send LangGraph metadata as a special event
+            const langGraphMetadata = {
+              intent: graphResult.intent,
+              confidence: graphResult.confidence,
+              complexityLevel: graphResult.complexityLevel,
+              useReact: graphResult.useReact,
+              reasoningChain: graphResult.reasoningChain || [],
+              currentStep: graphResult.currentStep || 0,
+              toolsUsed: graphResult.toolsUsed || []
+            }
+            
+            controller.enqueue(encoder.encode(`2:${JSON.stringify({
+              type: 'langGraph',
+              data: langGraphMetadata
+            })}\n`))
+
+            // Then relay all original stream data
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              controller.enqueue(value)
+            }
+
+            controller.close()
+          } catch (error) {
+            console.error('Error in LangGraph metadata streaming:', error)
+            controller.error(error)
+          }
+        }
+      })
+
+      return new Response(transformedStream, {
+        headers: originalResponse.headers,
       })
     } else {
       // Custom LLM (Ollama, etc.) via server-side streaming

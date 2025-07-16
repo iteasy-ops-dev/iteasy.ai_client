@@ -1,6 +1,7 @@
 import { END, START, StateGraph } from '@langchain/langgraph'
 import { ChatState } from './types'
 import { intentClassifierNode } from './nodes/intentClassifier'
+import { complexityDetectorNode } from './nodes/complexityDetector'
 import { generalChatNode } from './nodes/generalChat'
 import { systemEngineerNode } from './nodes/systemEngineer'
 import { helpNode } from './nodes/helpNode'
@@ -28,6 +29,31 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
       response: {
         value: (x?: any, y?: any) => y ?? x,
       },
+      // ReAct Pattern Fields
+      complexityLevel: {
+        value: (x?: any, y?: any) => y ?? x,
+      },
+      useReact: {
+        value: (x?: any, y?: any) => y ?? x,
+      },
+      thoughts: {
+        value: (x?: any, y?: any) => y ?? x ?? [],
+      },
+      actions: {
+        value: (x?: any, y?: any) => y ?? x ?? [],
+      },
+      observations: {
+        value: (x?: any, y?: any) => y ?? x ?? [],
+      },
+      reasoningChain: {
+        value: (x?: any, y?: any) => y ?? x ?? [],
+      },
+      currentStep: {
+        value: (x?: any, y?: any) => y ?? x,
+      },
+      toolsUsed: {
+        value: (x?: any, y?: any) => y ?? x ?? [],
+      },
     },
   })
 
@@ -36,6 +62,7 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
     return await intentClassifierNode(state, config)
   })
   
+  workflow.addNode('complexityDetector', complexityDetectorNode)
   workflow.addNode('generalChat', generalChatNode)
   workflow.addNode('systemEngineer', systemEngineerNode)
   workflow.addNode('help', helpNode)
@@ -43,18 +70,30 @@ export function createChatGraph(config: { apiKey: string; model?: string; useLoc
   // Add edges from START to intentClassifier
   workflow.addEdge(START, 'intentClassifier' as any)
 
-  // Add conditional edges based on intent
+  // Add edge from intentClassifier to complexityDetector
+  workflow.addEdge('intentClassifier' as any, 'complexityDetector' as any)
+
+  // Add conditional edges based on complexity and intent
   workflow.addConditionalEdges(
-    'intentClassifier' as any,
+    'complexityDetector' as any,
     (state: ChatState) => {
-      console.log(`Routing based on intent: ${state.intent} (confidence: ${state.confidence})`)
+      console.log('=== Graph Routing Decision ===')
+      console.log(`Intent: ${state.intent} (confidence: ${state.confidence})`)
+      console.log(`Complexity: ${state.complexityLevel} (useReact: ${state.useReact})`)
       
-      // Route based on intent and confidence
+      // Route based on intent and complexity
       if (state.intent === 'help' && state.confidence >= 0.7) {
+        console.log('→ Routing to: help')
         return 'help'
       } else if (state.intent === 'system_engineering' && state.confidence >= 0.7) {
+        if (state.useReact) {
+          console.log('→ Routing to: systemEngineer (will use ReAct pattern)')
+        } else {
+          console.log('→ Routing to: systemEngineer (simple response)')
+        }
         return 'systemEngineer'
       }
+      console.log('→ Routing to: generalChat')
       return 'generalChat'
     },
     {

@@ -12,7 +12,8 @@ export async function streamWithOpenAI(
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
   config: LLMConfig,
   onStream: (chunk: string) => void,
-  onFinish?: (usage?: any) => void
+  onFinish?: (usage?: any) => void,
+  onLangGraphUpdate?: (metadata: any) => void
 ) {
   console.log('🚀 Starting OpenAI stream via API route...')
   console.log('📝 Input messages:', messages)
@@ -66,6 +67,17 @@ export async function streamWithOpenAI(
         } catch (e) {
           console.warn('❌ Failed to parse text delta:', e)
         }
+      } else if (line.startsWith('2:')) {
+        // LangGraph metadata format: 2:{"type":"langGraph","data":{...}}
+        try {
+          const metadataEvent = JSON.parse(line.slice(2))
+          if (metadataEvent.type === 'langGraph' && onLangGraphUpdate) {
+            console.log('🧠 Received LangGraph metadata:', metadataEvent.data)
+            onLangGraphUpdate(metadataEvent.data)
+          }
+        } catch (e) {
+          console.warn('❌ Failed to parse LangGraph metadata:', e)
+        }
       } else if (line.startsWith('e:')) {
         // Finish/usage data format: e:{"finishReason":"stop","usage":{...}}
         try {
@@ -73,6 +85,11 @@ export async function streamWithOpenAI(
           if (finishData.usage) {
             usage = finishData.usage
             console.log('📊 Received usage data:', usage)
+          }
+          // LangGraph 메타데이터도 finish 이벤트에 포함될 수 있음
+          if (finishData.langGraph && onLangGraphUpdate) {
+            console.log('🧠 Received LangGraph metadata in finish event:', finishData.langGraph)
+            onLangGraphUpdate(finishData.langGraph)
           }
         } catch (e) {
           console.warn('❌ Failed to parse finish data:', e)
@@ -115,7 +132,8 @@ export async function streamWithLocalLLM(
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
   config: LLMConfig,
   onStream: (chunk: string) => void,
-  onFinish?: (usage?: any) => void
+  onFinish?: (usage?: any) => void,
+  onLangGraphUpdate?: (metadata: any) => void
 ) {
   console.log('🚀 Starting Custom LLM stream via API route...')
   console.log('📝 Input messages:', messages)
@@ -171,6 +189,17 @@ export async function streamWithLocalLLM(
         } catch (e) {
           console.warn('❌ Failed to parse text delta:', e)
         }
+      } else if (line.startsWith('2:')) {
+        // LangGraph metadata format: 2:{"type":"langGraph","data":{...}}
+        try {
+          const metadataEvent = JSON.parse(line.slice(2))
+          if (metadataEvent.type === 'langGraph' && onLangGraphUpdate) {
+            console.log('🧠 Received LangGraph metadata:', metadataEvent.data)
+            onLangGraphUpdate(metadataEvent.data)
+          }
+        } catch (e) {
+          console.warn('❌ Failed to parse LangGraph metadata:', e)
+        }
       } else if (line.startsWith('e:')) {
         // Finish/usage data format: e:{"finishReason":"stop","usage":{...}}
         try {
@@ -178,6 +207,11 @@ export async function streamWithLocalLLM(
           if (finishData.usage) {
             usage = finishData.usage
             console.log('📊 Received usage data:', usage)
+          }
+          // LangGraph 메타데이터도 finish 이벤트에 포함될 수 있음
+          if (finishData.langGraph && onLangGraphUpdate) {
+            console.log('🧠 Received LangGraph metadata in finish event:', finishData.langGraph)
+            onLangGraphUpdate(finishData.langGraph)
           }
         } catch (e) {
           console.warn('❌ Failed to parse finish data:', e)

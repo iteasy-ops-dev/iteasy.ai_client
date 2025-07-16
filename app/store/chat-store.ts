@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { Chat, Message, TokenUsage } from '@/app/types'
+import type { Chat, Message, TokenUsage, LangGraphMetadata } from '@/app/types'
 
 interface ChatStore {
   chats: Chat[]
@@ -17,6 +17,7 @@ interface ChatStore {
   getCurrentChat: () => Chat | null
   updateLastMessage: (chatId: string, content: string) => void
   updateMessageWithTokenUsage: (chatId: string, messageId: string, tokenUsage: TokenUsage) => void
+  updateMessageWithLangGraphMetadata: (chatId: string, messageId: string, metadata: LangGraphMetadata) => void
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 15)
@@ -145,6 +146,24 @@ export const useChatStore = create<ChatStore>()(
           ),
         }))
       },
+
+      updateMessageWithLangGraphMetadata: (chatId: string, messageId: string, metadata: LangGraphMetadata) => {
+        set((state) => ({
+          chats: state.chats.map((chat) =>
+            chat.id === chatId
+              ? {
+                  ...chat,
+                  messages: chat.messages.map((msg) =>
+                    msg.id === messageId
+                      ? { ...msg, langGraphMetadata: metadata }
+                      : msg
+                  ),
+                  updatedAt: new Date(),
+                }
+              : chat
+          ),
+        }))
+      },
     }),
     {
       name: 'chat-store',
@@ -169,6 +188,7 @@ export const useChatStore = create<ChatStore>()(
             ...msg,
             createdAt: msg.createdAt?.toISOString(),
             tokenUsage: msg.tokenUsage, // Make sure tokenUsage is preserved
+            langGraphMetadata: msg.langGraphMetadata, // Make sure langGraphMetadata is preserved
           }))
         })),
         currentChatId: state.currentChatId,

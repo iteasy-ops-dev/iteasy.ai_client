@@ -133,6 +133,7 @@ export default function ChatInterface() {
                 messages={currentChat?.messages || []} 
                 isLoading={isStreaming}
               />
+              
               <InputArea
                 input={input}
                 handleInputChange={handleInputChange}

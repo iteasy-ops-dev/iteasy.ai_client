@@ -12,6 +12,7 @@ export interface StreamingState {
 export interface UseStreamingChatOptions {
   onStream?: (chunk: string) => void
   onFinish?: (usage?: any) => void
+  onLangGraphUpdate?: (metadata: any) => void
   onError?: (error: Error) => void
   maxRetries?: number
 }
@@ -20,6 +21,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}) {
   const {
     onStream,
     onFinish,
+    onLangGraphUpdate,
     onError,
     maxRetries = 3
   } = options
@@ -46,6 +48,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}) {
     streamCallbacks?: {
       onStream?: (chunk: string) => void
       onFinish?: (usage?: any) => void
+      onLangGraphUpdate?: (metadata: any) => void
     }
   ) => {
     const abortController = new AbortController()
@@ -64,14 +67,16 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}) {
             messages,
             config,
             streamCallbacks?.onStream || onStream || (() => {}),
-            streamCallbacks?.onFinish || onFinish
+            streamCallbacks?.onFinish || onFinish,
+            streamCallbacks?.onLangGraphUpdate || onLangGraphUpdate
           )
         } else {
           await streamWithLocalLLM(
             messages,
             config,
             streamCallbacks?.onStream || onStream || (() => {}),
-            streamCallbacks?.onFinish || onFinish
+            streamCallbacks?.onFinish || onFinish,
+            streamCallbacks?.onLangGraphUpdate || onLangGraphUpdate
           )
         }
 
